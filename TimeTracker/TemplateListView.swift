@@ -34,7 +34,7 @@ struct TemplateListView: View {
                 }) {
                     Image(systemName: "plus")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color("BrandAccent"))
                 }
                 .buttonStyle(.plain)
             }
@@ -100,9 +100,8 @@ struct TemplateListView: View {
                 }
             }
         }
-        .padding(8)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(12)
+        .frame(maxHeight: .infinity, alignment: .top)
     }
 
     private func addTemplate() {
@@ -135,7 +134,7 @@ struct TemplateButton: View {
                 HStack(spacing: 6) {
                     Image(systemName: "doc.text")
                         .font(.system(size: 10))
-                        .foregroundStyle(.blue)
+                        .foregroundStyle(Color("BrandAccent"))
 
                     Text(template.name)
                         .font(.system(size: 11))
@@ -158,7 +157,7 @@ struct TemplateButton: View {
         }
         .padding(.horizontal, 8)
         .padding(.vertical, 6)
-        .background(isHovered ? Color.blue.opacity(0.1) : Color.clear)
+        .background(isHovered ? Color("BrandAccent").opacity(0.15) : Color.clear)
         .clipShape(RoundedRectangle(cornerRadius: 4))
         .contentShape(Rectangle())
         .onHover { hovering in

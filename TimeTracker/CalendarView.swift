@@ -103,9 +103,7 @@ struct CalendarView: View {
                 }
             }
         }
-        .padding(8)
-        .background(Color(nsColor: .controlBackgroundColor))
-        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .padding(12)
         .onAppear {
             displayedMonth = selectedDate
         }
@@ -154,7 +152,7 @@ struct DayCell: View {
         if isSelected {
             return .white
         } else if isToday {
-            return .blue
+            return Color("BrandAccent")
         } else {
             return .primary
         }
@@ -162,7 +160,7 @@ struct DayCell: View {
 
     private var backgroundColor: Color {
         if isSelected {
-            return .blue
+            return Color("BrandAccent")
         } else {
             return .clear
         }

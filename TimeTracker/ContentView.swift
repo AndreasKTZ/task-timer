@@ -75,10 +75,8 @@ struct ContentView: View {
                 )
             }
 
-            Divider()
-
             // Calendar sidebar
-            VStack(spacing: 8) {
+            VStack(spacing: 0) {
                 CalendarView(
                     selectedDate: $timerManager.selectedDate,
                     onDateSelected: { date in
@@ -86,17 +84,20 @@ struct ContentView: View {
                     }
                 )
 
+                Divider()
+                    .opacity(0.5)
+
                 TemplateListView(onAddTask: { templateName in
                     addTaskFromTemplate(templateName)
                 })
-
-                Spacer()
             }
             .frame(width: 180)
-            .padding(.top, 8)
-            .padding(.horizontal, 4)
+            .background(Color(nsColor: .controlBackgroundColor))
         }
         .frame(minWidth: 550, minHeight: 350)
+        .overlay(alignment: .top) {
+            Color("BrandAccent").frame(height: 2)
+        }
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.space) {

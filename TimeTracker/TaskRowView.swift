@@ -37,16 +37,16 @@ struct TaskRowView: View {
 
     private var backgroundColor: Color {
         if isActive {
-            return Color.green.opacity(0.1)
+            return Color("BrandAccent").opacity(0.1)
         } else if isSelected {
-            return Color.blue.opacity(0.1)
+            return Color("BrandAccent").opacity(0.06)
         } else {
             return Color.clear
         }
     }
 
     private var borderColor: Color {
-        isSelected ? Color.blue.opacity(0.5) : Color.clear
+        isSelected ? Color("BrandAccent").opacity(0.5) : Color.clear
     }
 
     var body: some View {
@@ -55,9 +55,9 @@ struct TaskRowView: View {
             Button(action: onToggle) {
                 Image(systemName: isActive ? "pause.fill" : "play.fill")
                     .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(isActive ? .orange : .green)
+                    .foregroundStyle(isActive ? Color("BrandBackground") : Color("BrandAccent"))
                     .frame(width: 28, height: 28)
-                    .background(isActive ? Color.orange.opacity(0.15) : Color.green.opacity(0.15))
+                    .background(isActive ? Color("BrandBackground").opacity(0.15) : Color("BrandAccent").opacity(0.15))
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
@@ -81,7 +81,7 @@ struct TaskRowView: View {
                     Button(action: startNameEditing) {
                         Image(systemName: "pencil.circle.fill")
                             .font(.system(size: 14))
-                            .foregroundStyle(.blue.opacity(0.8))
+                            .foregroundStyle(Color("BrandAccent").opacity(0.8))
                     }
                     .buttonStyle(.plain)
                     .opacity(isHovered ? 1 : 0)

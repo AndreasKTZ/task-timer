@@ -41,7 +41,7 @@ struct FooterView: View {
                     Text("Ny opgave")
                         .font(.system(size: 13, weight: .medium))
                 }
-                .foregroundStyle(.blue)
+                .foregroundStyle(Color("BrandAccent"))
             }
             .buttonStyle(.plain)
 
@@ -59,7 +59,7 @@ struct FooterView: View {
 
                 Text(String(format: "%.2f t", totalDecimalHours))
                     .font(.system(size: 14, weight: .semibold, design: .monospaced))
-                    .foregroundStyle(.green)
+                    .foregroundStyle(Color("BrandAccent"))
             }
         }
         .padding(.horizontal, 16)
