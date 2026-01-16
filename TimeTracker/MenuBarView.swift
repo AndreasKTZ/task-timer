@@ -77,11 +77,16 @@ struct MenuBarView: View {
 
             // Actions
             Button(action: {
-                openWindow(id: "main")
+                // Focus existing window or open new one
+                if let window = NSApplication.shared.windows.first(where: { $0.title == "NMIC Time Tracker" }) {
+                    window.makeKeyAndOrderFront(nil)
+                } else {
+                    openWindow(id: "main")
+                }
                 NSApplication.shared.activate(ignoringOtherApps: true)
             }) {
                 HStack {
-                    Image(systemName: "clock")
+                    Image(systemName: "timer")
                     Text("Åbn Time Tracker")
                     Spacer()
                 }

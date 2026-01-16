@@ -63,7 +63,7 @@ struct MenuBarLabel: View {
 
     var body: some View {
         HStack(spacing: 4) {
-            Image(systemName: runningTask != nil ? "clock.fill" : "clock")
+            Image(systemName: runningTask != nil ? "timer" : "timer")
             if !displayText.isEmpty {
                 Text(displayText)
                     .font(.system(.body, design: .monospaced))
