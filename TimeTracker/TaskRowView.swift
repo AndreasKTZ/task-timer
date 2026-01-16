@@ -9,27 +9,30 @@ import SwiftUI
 
 struct TaskRowView: View {
     @Bindable var task: Task
+    @Bindable var timerManager: TimerManager
     var isActive: Bool
     var isSelected: Bool
-    var tick: Int  // Used to trigger time recalculation
-    var showBillableTime: Bool
     var onToggle: () -> Void
     var onDelete: () -> Void
     var onSelect: () -> Void
 
-    @State private var isEditing = false
+    @State private var isEditingName = false
     @State private var editedName: String = ""
-    @FocusState private var isTextFieldFocused: Bool
+    @State private var isEditingTime = false
+    @State private var editedTime: String = ""
+    @FocusState private var isNameFieldFocused: Bool
+    @FocusState private var isTimeFieldFocused: Bool
+    @State private var isHovered = false
 
     // Computed with tick dependency to force refresh
     private var displayedTime: String {
-        let _ = tick
+        let _ = timerManager.tick
         return task.formattedTime
     }
 
     private var displayedHours: Double {
-        let _ = tick
-        return showBillableTime ? task.roundedDecimalHours : task.decimalHours
+        let _ = timerManager.tick
+        return timerManager.showBillableTime ? task.roundedDecimalHours : task.decimalHours
     }
 
     private var backgroundColor: Color {
@@ -60,35 +63,60 @@ struct TaskRowView: View {
             .buttonStyle(.plain)
 
             // Task name
-            if isEditing {
+            if isEditingName {
                 TextField("Opgavenavn", text: $editedName)
                     .textFieldStyle(.plain)
                     .font(.system(size: 14))
-                    .focused($isTextFieldFocused)
+                    .focused($isNameFieldFocused)
                     .onSubmit {
-                        commitEdit()
+                        commitNameEdit()
                     }
             } else {
-                Text(task.name.isEmpty ? "Unavngivet opgave" : task.name)
-                    .font(.system(size: 14))
-                    .foregroundStyle(task.name.isEmpty ? .secondary : .primary)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .contentShape(Rectangle())
-                    .onTapGesture(count: 2) {
-                        startEditing()
+                HStack(spacing: 6) {
+                    Text(task.name.isEmpty ? "Unavngivet opgave" : task.name)
+                        .font(.system(size: 14))
+                        .foregroundStyle(task.name.isEmpty ? .secondary : .primary)
+
+                    // Edit button (visible on hover)
+                    Button(action: startNameEditing) {
+                        Image(systemName: "pencil.circle.fill")
+                            .font(.system(size: 14))
+                            .foregroundStyle(.blue.opacity(0.8))
                     }
-                    .onTapGesture(count: 1) {
-                        onSelect()
-                    }
+                    .buttonStyle(.plain)
+                    .opacity(isHovered ? 1 : 0)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    onSelect()
+                }
             }
 
             Spacer()
 
-            // Time display (HH:MM:SS)
-            Text(displayedTime)
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .frame(width: 70, alignment: .trailing)
+            // Time display (HH:MM:SS) - clickable to edit
+            if isEditingTime {
+                TextField("00:00:00", text: $editedTime)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 14, design: .monospaced))
+                    .multilineTextAlignment(.trailing)
+                    .focused($isTimeFieldFocused)
+                    .frame(width: 70)
+                    .onSubmit {
+                        commitTimeEdit()
+                    }
+            } else {
+                Text(displayedTime)
+                    .font(.system(size: 14, design: .monospaced))
+                    .foregroundStyle(.secondary)
+                    .frame(width: 70, alignment: .trailing)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        startTimeEditing()
+                    }
+                    .help("Klik for at redigere tid")
+            }
 
             // Decimal hours
             Text(String(format: "%.2f", displayedHours))
@@ -107,6 +135,9 @@ struct TaskRowView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .background(
             RoundedRectangle(cornerRadius: 6)
                 .fill(backgroundColor)
@@ -117,14 +148,53 @@ struct TaskRowView: View {
         )
     }
 
-    private func startEditing() {
+    private func startNameEditing() {
         editedName = task.name
-        isEditing = true
-        isTextFieldFocused = true
+        isEditingName = true
+        isNameFieldFocused = true
+        timerManager.isEditing = true
     }
 
-    private func commitEdit() {
+    private func commitNameEdit() {
         task.name = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
-        isEditing = false
+        isEditingName = false
+        timerManager.isEditing = false
+    }
+
+    private func startTimeEditing() {
+        // Stop the task if running before editing
+        if task.isRunning {
+            task.stop()
+        }
+        editedTime = task.formattedTime
+        isEditingTime = true
+        isTimeFieldFocused = true
+        timerManager.isEditing = true
+    }
+
+    private func commitTimeEdit() {
+        // Parse HH:MM:SS or HH:MM or just minutes
+        let trimmed = editedTime.trimmingCharacters(in: .whitespaces)
+        var totalSeconds = 0
+
+        let parts = trimmed.split(separator: ":").compactMap { Int($0) }
+
+        if parts.count == 3 {
+            // HH:MM:SS
+            totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+        } else if parts.count == 2 {
+            // HH:MM (assume hours:minutes)
+            totalSeconds = parts[0] * 3600 + parts[1] * 60
+        } else if parts.count == 1 {
+            // Just a number - treat as minutes
+            totalSeconds = parts[0] * 60
+        }
+
+        if totalSeconds >= 0 {
+            task.accumulatedSeconds = totalSeconds
+        }
+
+        isEditingTime = false
+        timerManager.isEditing = false
     }
 }

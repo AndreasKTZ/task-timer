@@ -17,6 +17,7 @@ final class TimerManager {
     private var timer: Timer?
     var tick: Int = 0  // Publicly observable to trigger UI updates
     var showBillableTime: Bool = true  // Toggle between actual and billable (rounded) hours
+    var isEditing: Bool = false  // True when user is editing a task name or time
 
     var isAnyTaskRunning: Bool {
         activeTaskID != nil

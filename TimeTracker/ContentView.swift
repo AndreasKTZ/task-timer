@@ -100,33 +100,40 @@ struct ContentView: View {
         .focusable()
         .focusEffectDisabled()
         .onKeyPress(.space) {
+            guard !timerManager.isEditing else { return .ignored }
             handleSpaceKey()
             return .handled
         }
         .onKeyPress(.upArrow) {
+            guard !timerManager.isEditing else { return .ignored }
             selectPreviousTask()
             return .handled
         }
         .onKeyPress(.downArrow) {
+            guard !timerManager.isEditing else { return .ignored }
             selectNextTask()
             return .handled
         }
         .onKeyPress(.leftArrow) {
+            guard !timerManager.isEditing else { return .ignored }
             timerManager.goToPreviousDay()
             selectedTaskIndex = nil
             return .handled
         }
         .onKeyPress(.rightArrow) {
+            guard !timerManager.isEditing else { return .ignored }
             timerManager.goToNextDay()
             selectedTaskIndex = nil
             return .handled
         }
         .onKeyPress(.return, phases: .down, action: { press in
+            guard !timerManager.isEditing else { return .ignored }
             guard press.modifiers.contains(.command) else { return .ignored }
             addTask()
             return .handled
         })
         .onKeyPress(characters: .init(charactersIn: "t"), phases: .down, action: { press in
+            guard !timerManager.isEditing else { return .ignored }
             guard press.modifiers.contains(.command) else { return .ignored }
             timerManager.goToToday()
             selectedTaskIndex = nil

@@ -26,10 +26,9 @@ struct TaskListView: View {
                 ForEach(Array(sortedTasks.enumerated()), id: \.element.id) { index, task in
                     TaskRowView(
                         task: task,
+                        timerManager: timerManager,
                         isActive: task.isRunning,
                         isSelected: selectedTaskIndex == index,
-                        tick: timerManager.tick,
-                        showBillableTime: timerManager.showBillableTime,
                         onToggle: {
                             timerManager.toggleTask(task, allTasks: tasks, modelContext: modelContext)
                         },
