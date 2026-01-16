@@ -12,7 +12,8 @@ import SwiftData
 struct TimeTrackerApp: App {
     var sharedModelContainer: ModelContainer = {
         let schema = Schema([
-            Item.self,
+            Task.self,
+            TaskTemplate.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
@@ -24,9 +25,10 @@ struct TimeTrackerApp: App {
     }()
 
     var body: some Scene {
-        WindowGroup {
+        WindowGroup("NMIC Task Timer") {
             ContentView()
         }
         .modelContainer(sharedModelContainer)
+        .defaultSize(width: 650, height: 450)
     }
 }
