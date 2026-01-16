@@ -25,7 +25,7 @@ struct TimeTrackerApp: App {
     }()
 
     var body: some Scene {
-        WindowGroup("NMIC Task Timer") {
+        WindowGroup("NMIC Time Tracker") {
             ContentView()
         }
         .modelContainer(sharedModelContainer)

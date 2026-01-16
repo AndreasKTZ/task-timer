@@ -1,0 +1,36 @@
+{
+  "fill" : {
+    "automatic-gradient" : "display-p3:0.39453,0.17188,0.22656,1.00000"
+  },
+  "groups" : [
+    {
+      "layers" : [
+        {
+          "fill" : {
+            "solid" : "display-p3:0.80664,0.19661,0.26638,1.00000"
+          },
+          "image-name" : "timer@10x 2.png",
+          "name" : "timer@10x 2",
+          "position" : {
+            "scale" : 1,
+            "translation-in-points" : [
+              5.5,
+              0.5
+            ]
+          }
+        }
+      ],
+      "shadow" : {
+        "kind" : "neutral",
+        "opacity" : 0.5
+      },
+      "translucency" : {
+        "enabled" : true,
+        "value" : 0.5
+      }
+    }
+  ],
+  "supported-platforms" : {
+    "squares" : "shared"
+  }
+}
