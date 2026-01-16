@@ -62,6 +62,9 @@ struct TaskRowView: View {
             }
             .buttonStyle(.plain)
 
+            // Project code picker
+            ProjectCodePicker(selectedCode: $task.projectCode)
+
             // Task name
             if isEditingName {
                 TextField("Opgavenavn", text: $editedName)

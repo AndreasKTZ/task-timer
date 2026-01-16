@@ -17,8 +17,9 @@ final class Task {
     var lastStartTime: Date?
     var sortOrder: Int
     var createdAt: Date
+    var projectCode: String?
 
-    init(name: String, date: Date, sortOrder: Int = 0) {
+    init(name: String, date: Date, sortOrder: Int = 0, projectCode: String? = nil) {
         self.id = UUID()
         self.name = name
         self.date = Calendar.current.startOfDay(for: date)
@@ -26,6 +27,7 @@ final class Task {
         self.lastStartTime = nil
         self.sortOrder = sortOrder
         self.createdAt = Date()
+        self.projectCode = projectCode
     }
 
     var isRunning: Bool {

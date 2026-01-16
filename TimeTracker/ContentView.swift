@@ -11,7 +11,7 @@ import SwiftData
 struct ContentView: View {
     @Environment(\.modelContext) private var modelContext
     @Query private var allTasks: [Task]
-    @State private var timerManager = TimerManager()
+    @Bindable var timerManager: TimerManager
     @State private var showDeleteConfirmation = false
     @State private var taskToDelete: Task?
     @State private var selectedTaskIndex: Int? = nil
@@ -90,6 +90,11 @@ struct ContentView: View {
                 TemplateListView(onAddTask: { templateName in
                     addTaskFromTemplate(templateName)
                 })
+
+                Divider()
+                    .opacity(0.5)
+
+                ProjectCodeListView()
             }
             .frame(width: 180)
             .background(Color(nsColor: .controlBackgroundColor))
@@ -258,6 +263,6 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
+    ContentView(timerManager: TimerManager())
         .modelContainer(for: Task.self, inMemory: true)
 }
