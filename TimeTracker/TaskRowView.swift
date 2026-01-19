@@ -165,9 +165,12 @@ struct TaskRowView: View {
     }
 
     private func startTimeEditing() {
-        // Stop the task if running before editing
+        // Stop the task if running before editing (also clear TimerManager state)
         if task.isRunning {
             task.stop()
+            if timerManager.activeTaskID == task.id {
+                timerManager.activeTaskID = nil
+            }
         }
         editedTime = task.formattedTime
         isEditingTime = true
