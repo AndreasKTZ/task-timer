@@ -67,33 +67,38 @@ struct TaskRowView: View {
 
             // Task name
             if isEditingName {
-                TextField("Opgavenavn", text: $editedName)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 14))
-                    .focused($isNameFieldFocused)
-                    .onSubmit {
-                        commitNameEdit()
-                    }
-            } else {
-                HStack(spacing: 6) {
-                    Text(task.name.isEmpty ? "Unavngivet opgave" : task.name)
+                HStack(spacing: 4) {
+                    TextField("Opgavenavn", text: $editedName)
+                        .textFieldStyle(.plain)
                         .font(.system(size: 14))
-                        .foregroundStyle(task.name.isEmpty ? .secondary : .primary)
+                        .focused($isNameFieldFocused)
+                        .onSubmit {
+                            commitNameEdit()
+                        }
 
-                    // Edit button (visible on hover)
-                    Button(action: startNameEditing) {
-                        Image(systemName: "pencil.circle.fill")
-                            .font(.system(size: 14))
-                            .foregroundStyle(Color("BrandAccent").opacity(0.8))
+                    Button(action: commitNameEdit) {
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.green)
                     }
                     .buttonStyle(.plain)
-                    .opacity(isHovered ? 1 : 0)
+
+                    Button(action: cancelNameEdit) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    onSelect()
-                }
+            } else {
+                Text(task.name.isEmpty ? "Unavngivet opgave" : task.name)
+                    .font(.system(size: 14))
+                    .foregroundStyle(task.name.isEmpty ? .secondary : .primary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        startNameEditing()
+                    }
             }
 
             Spacer()
@@ -160,6 +165,11 @@ struct TaskRowView: View {
 
     private func commitNameEdit() {
         task.name = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        isEditingName = false
+        timerManager.isEditing = false
+    }
+
+    private func cancelNameEdit() {
         isEditingName = false
         timerManager.isEditing = false
     }
