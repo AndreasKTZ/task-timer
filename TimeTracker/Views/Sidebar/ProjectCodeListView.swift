@@ -21,7 +21,7 @@ struct ProjectCodeListView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header
             HStack {
-                Text("Projektkoder")
+                Text(String(localized: "Projektkoder"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
 
@@ -45,7 +45,7 @@ struct ProjectCodeListView: View {
             if isAddingCode {
                 VStack(spacing: 4) {
                     HStack(spacing: 4) {
-                        TextField("Kode", text: $newCode)
+                        TextField(String(localized: "Kode"), text: $newCode)
                             .textFieldStyle(.plain)
                             .font(.system(size: 11))
                             .focused($isCodeFieldFocused)
@@ -55,7 +55,7 @@ struct ProjectCodeListView: View {
                             .clipShape(RoundedRectangle(cornerRadius: 4))
                             .frame(width: 60)
 
-                        TextField("Navn (valgfrit)", text: $newName)
+                        TextField(String(localized: "Navn (valgfrit)"), text: $newName)
                             .textFieldStyle(.plain)
                             .font(.system(size: 11))
                             .onSubmit {
@@ -95,7 +95,7 @@ struct ProjectCodeListView: View {
 
             // Project code list
             if projectCodes.isEmpty && !isAddingCode {
-                Text("Ingen projektkoder")
+                Text(String(localized: "Ingen projektkoder"))
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
@@ -133,50 +133,5 @@ struct ProjectCodeListView: View {
 
     private func deleteProjectCode(_ code: ProjectCode) {
         modelContext.delete(code)
-    }
-}
-
-struct ProjectCodeRow: View {
-    let projectCode: ProjectCode
-    let onDelete: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            Image(systemName: "tag.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(Color("BrandAccent"))
-
-            VStack(alignment: .leading, spacing: 1) {
-                Text(projectCode.code)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.primary)
-
-                if !projectCode.name.isEmpty {
-                    Text(projectCode.name)
-                        .font(.system(size: 10))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-
-            Spacer()
-
-            Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(isHovered ? Color("BrandAccent").opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 }

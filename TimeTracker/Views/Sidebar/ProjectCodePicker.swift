@@ -18,7 +18,7 @@ struct ProjectCodePicker: View {
                 selectedCode = nil
             }) {
                 HStack {
-                    Text("Ingen")
+                    Text(String(localized: "Ingen"))
                     if selectedCode == nil {
                         Spacer()
                         Image(systemName: "checkmark")

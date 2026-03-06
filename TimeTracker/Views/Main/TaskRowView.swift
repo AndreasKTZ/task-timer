@@ -24,16 +24,6 @@ struct TaskRowView: View {
     @FocusState private var isTimeFieldFocused: Bool
     @State private var isHovered = false
 
-    // Computed with tick dependency to force refresh
-    private var displayedTime: String {
-        let _ = timerManager.tick
-        return task.formattedTime
-    }
-
-    private var displayedHours: Double {
-        let _ = timerManager.tick
-        return timerManager.showBillableTime ? task.roundedDecimalHours : task.decimalHours
-    }
 
     private var backgroundColor: Color {
         if isActive {
@@ -61,6 +51,8 @@ struct TaskRowView: View {
                     .clipShape(Circle())
             }
             .buttonStyle(.plain)
+            .accessibilityLabel(isActive ? String(localized: "Stop opgave") : String(localized: "Start opgave"))
+            .accessibilityHint(task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name)
 
             // Project code picker
             ProjectCodePicker(selectedCode: $task.projectCode)
@@ -68,7 +60,7 @@ struct TaskRowView: View {
             // Task name
             if isEditingName {
                 HStack(spacing: 4) {
-                    TextField("Opgavenavn", text: $editedName)
+                    TextField(String(localized: "Opgavenavn"), text: $editedName)
                         .textFieldStyle(.plain)
                         .font(.system(size: 14))
                         .focused($isNameFieldFocused)
@@ -91,7 +83,7 @@ struct TaskRowView: View {
                     .buttonStyle(.plain)
                 }
             } else {
-                Text(task.name.isEmpty ? "Unavngivet opgave" : task.name)
+                Text(task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name)
                     .font(.system(size: 14))
                     .foregroundStyle(task.name.isEmpty ? .secondary : .primary)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -115,22 +107,16 @@ struct TaskRowView: View {
                         commitTimeEdit()
                     }
             } else {
-                Text(displayedTime)
-                    .font(.system(size: 14, design: .monospaced))
-                    .foregroundStyle(.secondary)
-                    .frame(width: 70, alignment: .trailing)
+                LiveTimeText(task: task, isActive: isActive)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         startTimeEditing()
                     }
-                    .help("Klik for at redigere tid")
+                    .help(String(localized: "Klik for at redigere tid"))
             }
 
             // Decimal hours
-            Text(String(format: "%.2f", displayedHours))
-                .font(.system(size: 14, design: .monospaced))
-                .foregroundStyle(.secondary)
-                .frame(width: 50, alignment: .trailing)
+            LiveDecimalHours(task: task, isActive: isActive, showBillable: timerManager.showBillableTime)
 
             // Delete button
             Button(action: onDelete) {
@@ -140,6 +126,7 @@ struct TaskRowView: View {
             }
             .buttonStyle(.plain)
             .opacity(isActive ? 0.5 : 1)
+            .accessibilityLabel(String(localized: "Slet opgave"))
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 8)
@@ -154,6 +141,27 @@ struct TaskRowView: View {
                         .strokeBorder(borderColor, lineWidth: 1.5)
                 )
         )
+        .contextMenu {
+            Button(isActive ? String(localized: "Stop") : String(localized: "Start")) {
+                onToggle()
+            }
+
+            Divider()
+
+            Button(String(localized: "Rediger navn")) {
+                startNameEditing()
+            }
+
+            Button(String(localized: "Rediger tid")) {
+                startTimeEditing()
+            }
+
+            Divider()
+
+            Button(String(localized: "Slet"), role: .destructive) {
+                onDelete()
+            }
+        }
     }
 
     private func startNameEditing() {
@@ -164,7 +172,8 @@ struct TaskRowView: View {
     }
 
     private func commitNameEdit() {
-        task.name = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let trimmed = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
+        task.name = String(trimmed.prefix(200))
         isEditingName = false
         timerManager.isEditing = false
     }
@@ -189,28 +198,89 @@ struct TaskRowView: View {
     }
 
     private func commitTimeEdit() {
-        // Parse HH:MM:SS or HH:MM or just minutes
         let trimmed = editedTime.trimmingCharacters(in: .whitespaces)
-        var totalSeconds = 0
 
-        let parts = trimmed.split(separator: ":").compactMap { Int($0) }
-
-        if parts.count == 3 {
-            // HH:MM:SS
-            totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
-        } else if parts.count == 2 {
-            // HH:MM (assume hours:minutes)
-            totalSeconds = parts[0] * 3600 + parts[1] * 60
-        } else if parts.count == 1 {
-            // Just a number - treat as minutes
-            totalSeconds = parts[0] * 60
+        // Empty input cancels edit
+        guard !trimmed.isEmpty else {
+            isEditingTime = false
+            timerManager.isEditing = false
+            return
         }
 
-        if totalSeconds >= 0 {
-            task.accumulatedSeconds = totalSeconds
+        let parts = trimmed.split(separator: ":").compactMap { Int($0) }
+        var totalSeconds: Int?
+
+        switch parts.count {
+        case 3:
+            // HH:MM:SS — validate minutes and seconds are 0-59
+            guard parts[1] >= 0, parts[1] < 60, parts[2] >= 0, parts[2] < 60, parts[0] >= 0 else { return }
+            totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
+        case 2:
+            // HH:MM — validate minutes are 0-59
+            guard parts[1] >= 0, parts[1] < 60, parts[0] >= 0 else { return }
+            totalSeconds = parts[0] * 3600 + parts[1] * 60
+        case 1:
+            // Just a number — treat as minutes
+            guard parts[0] >= 0 else { return }
+            totalSeconds = parts[0] * 60
+        default:
+            return // Invalid format, stay in edit mode
+        }
+
+        if let seconds = totalSeconds {
+            task.accumulatedSeconds = seconds
         }
 
         isEditingTime = false
         timerManager.isEditing = false
+    }
+}
+
+// MARK: - Live Time Display Helpers
+
+/// Displays formatted time (HH:MM:SS) with live updates only when the task is running.
+private struct LiveTimeText: View {
+    let task: Task
+    let isActive: Bool
+
+    var body: some View {
+        if isActive {
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                timeText
+            }
+        } else {
+            timeText
+        }
+    }
+
+    private var timeText: some View {
+        Text(task.formattedTime)
+            .font(.system(size: 14, design: .monospaced))
+            .foregroundStyle(.secondary)
+            .frame(width: 70, alignment: .trailing)
+    }
+}
+
+/// Displays decimal hours with live updates only when the task is running.
+private struct LiveDecimalHours: View {
+    let task: Task
+    let isActive: Bool
+    let showBillable: Bool
+
+    var body: some View {
+        if isActive {
+            TimelineView(.periodic(from: .now, by: 1)) { _ in
+                hoursText
+            }
+        } else {
+            hoursText
+        }
+    }
+
+    private var hoursText: some View {
+        Text(String(format: "%.2f", showBillable ? task.roundedDecimalHours : task.decimalHours))
+            .font(.system(size: 14, design: .monospaced))
+            .foregroundStyle(.secondary)
+            .frame(width: 50, alignment: .trailing)
     }
 }

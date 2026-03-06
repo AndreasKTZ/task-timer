@@ -27,12 +27,59 @@ struct TimeTrackerApp: App {
         }
     }()
 
+    init() {
+        NotificationCenter.default.addObserver(
+            forName: NSApplication.willTerminateNotification,
+            object: nil,
+            queue: .main
+        ) { [self] _ in
+            MainActor.assumeIsolated {
+                let context = sharedModelContainer.mainContext
+                let descriptor = FetchDescriptor<Task>()
+                if let tasks = try? context.fetch(descriptor) {
+                    timerManager.stopAllTasks(tasks, modelContext: context)
+                }
+            }
+        }
+    }
+
     var body: some Scene {
         WindowGroup("NMIC Time Tracker", id: "main") {
             ContentView(timerManager: timerManager)
         }
         .modelContainer(sharedModelContainer)
         .defaultSize(width: 650, height: 450)
+        .commands {
+            CommandGroup(replacing: .newItem) {
+                Button(String(localized: "Ny opgave")) {
+                    NotificationCenter.default.post(name: .addNewTask, object: nil)
+                }
+                .keyboardShortcut("n", modifiers: .command)
+            }
+
+            CommandMenu(String(localized: "Opgaver")) {
+                Button(String(localized: "Gå til i dag")) {
+                    NotificationCenter.default.post(name: .goToToday, object: nil)
+                }
+                .keyboardShortcut("t", modifiers: .command)
+
+                Divider()
+
+                Button(String(localized: "Vis faktisk tid")) {
+                    NotificationCenter.default.post(name: .showActualTime, object: nil)
+                }
+                .keyboardShortcut("1", modifiers: .command)
+
+                Button(String(localized: "Vis fakturerbar tid")) {
+                    NotificationCenter.default.post(name: .showBillableTime, object: nil)
+                }
+                .keyboardShortcut("2", modifiers: .command)
+            }
+        }
+
+        Settings {
+            SettingsView()
+        }
 
         MenuBarExtra {
             MenuBarView(timerManager: timerManager)
@@ -42,32 +89,5 @@ struct TimeTrackerApp: App {
                 .modelContainer(sharedModelContainer)
         }
         .menuBarExtraStyle(.window)
-    }
-}
-
-struct MenuBarLabel: View {
-    @Query private var allTasks: [Task]
-    @Bindable var timerManager: TimerManager
-
-    private var runningTask: Task? {
-        allTasks.first(where: { $0.isRunning })
-    }
-
-    private var displayText: String {
-        let _ = timerManager.tick
-        if let task = runningTask {
-            return task.formattedTime
-        }
-        return ""
-    }
-
-    var body: some View {
-        HStack(spacing: 4) {
-            Image(systemName: runningTask != nil ? "timer" : "timer")
-            if !displayText.isEmpty {
-                Text(displayText)
-                    .font(.system(.body, design: .monospaced))
-            }
-        }
     }
 }

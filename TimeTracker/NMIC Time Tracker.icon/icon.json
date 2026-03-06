@@ -1,14 +1,24 @@
 {
   "fill" : {
-    "automatic-gradient" : "display-p3:0.39453,0.17188,0.22656,1.00000"
+    "automatic-gradient" : "display-p3:0.97848,0.99209,1.00000,1.00000"
   },
   "groups" : [
     {
       "layers" : [
         {
-          "fill" : {
-            "solid" : "display-p3:0.80664,0.19661,0.26638,1.00000"
-          },
+          "fill-specializations" : [
+            {
+              "value" : {
+                "solid" : "display-p3:1.00000,0.20666,0.15800,1.00000"
+              }
+            },
+            {
+              "appearance" : "dark",
+              "value" : {
+                "solid" : "display-p3:1.00000,0.21659,0.31009,1.00000"
+              }
+            }
+          ],
           "image-name" : "timer@10x 2.png",
           "name" : "timer@10x 2",
           "position" : {

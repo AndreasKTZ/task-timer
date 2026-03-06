@@ -21,7 +21,7 @@ struct TemplateListView: View {
         VStack(alignment: .leading, spacing: 8) {
             // Header
             HStack {
-                Text("Skabeloner")
+                Text(String(localized: "Skabeloner"))
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(.secondary)
 
@@ -43,7 +43,7 @@ struct TemplateListView: View {
             // New template input
             if isAddingTemplate {
                 HStack(spacing: 4) {
-                    TextField("Navn", text: $newTemplateName)
+                    TextField(String(localized: "Navn"), text: $newTemplateName)
                         .textFieldStyle(.plain)
                         .font(.system(size: 11))
                         .focused($isTextFieldFocused)
@@ -78,7 +78,7 @@ struct TemplateListView: View {
 
             // Template list
             if templates.isEmpty && !isAddingTemplate {
-                Text("Ingen skabeloner")
+                Text(String(localized: "Ingen skabeloner"))
                     .font(.system(size: 11))
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
@@ -117,51 +117,5 @@ struct TemplateListView: View {
 
     private func deleteTemplate(_ template: TaskTemplate) {
         modelContext.delete(template)
-    }
-}
-
-struct TemplateButton: View {
-    let template: TaskTemplate
-    let onTap: () -> Void
-    let onDelete: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        HStack(spacing: 6) {
-            // Main clickable area for adding task
-            Button(action: onTap) {
-                HStack(spacing: 6) {
-                    Image(systemName: "doc.text")
-                        .font(.system(size: 10))
-                        .foregroundStyle(Color("BrandAccent"))
-
-                    Text(template.name)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-
-                    Spacer()
-                }
-                .contentShape(Rectangle())
-            }
-            .buttonStyle(.plain)
-
-            // Always visible delete button
-            Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary.opacity(0.6))
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(isHovered ? Color("BrandAccent").opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
-        .contentShape(Rectangle())
-        .onHover { hovering in
-            isHovered = hovering
-        }
     }
 }

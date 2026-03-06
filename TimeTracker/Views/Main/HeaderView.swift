@@ -13,12 +13,7 @@ struct HeaderView: View {
     var onStopAll: () -> Void
     var onStartFirst: () -> Void
 
-    private var dateFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "da_DK")
-        formatter.dateFormat = "EEEE d. MMMM yyyy"
-        return formatter
-    }
+
 
     var body: some View {
         HStack(spacing: 16) {
@@ -54,7 +49,7 @@ struct HeaderView: View {
                 }
                 .buttonStyle(.plain)
 
-                Text(dateFormatter.string(from: timerManager.selectedDate))
+                Text(Formatters.danishDayMonthYear.string(from: timerManager.selectedDate))
                     .font(.system(size: 16, weight: .medium))
                     .foregroundStyle(.primary)
 

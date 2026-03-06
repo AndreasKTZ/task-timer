@@ -16,12 +16,6 @@ struct CalendarView: View {
     private let calendar = Calendar.current
     private let daysOfWeek = ["Ma", "Ti", "On", "To", "Fr", "Lø", "Sø"]
 
-    private var monthYearFormatter: DateFormatter {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "da_DK")
-        formatter.dateFormat = "MMMM yyyy"
-        return formatter
-    }
 
     private var daysInMonth: [Date?] {
         guard let range = calendar.range(of: .day, in: .month, for: displayedMonth),
@@ -61,7 +55,7 @@ struct CalendarView: View {
 
                 Spacer()
 
-                Text(monthYearFormatter.string(from: displayedMonth))
+                Text(Formatters.danishMonthYear.string(from: displayedMonth))
                     .font(.system(size: 12, weight: .semibold))
 
                 Spacer()
@@ -124,45 +118,6 @@ struct CalendarView: View {
     private func nextMonth() {
         if let newMonth = calendar.date(byAdding: .month, value: 1, to: displayedMonth) {
             displayedMonth = newMonth
-        }
-    }
-}
-
-struct DayCell: View {
-    let date: Date
-    let isSelected: Bool
-    let isToday: Bool
-    let onTap: () -> Void
-
-    private let calendar = Calendar.current
-
-    var body: some View {
-        Button(action: onTap) {
-            Text("\(calendar.component(.day, from: date))")
-                .font(.system(size: 11, weight: isToday ? .bold : .regular))
-                .foregroundStyle(foregroundColor)
-                .frame(width: 22, height: 22)
-                .background(backgroundColor)
-                .clipShape(Circle())
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var foregroundColor: Color {
-        if isSelected {
-            return .white
-        } else if isToday {
-            return Color("BrandAccent")
-        } else {
-            return .primary
-        }
-    }
-
-    private var backgroundColor: Color {
-        if isSelected {
-            return Color("BrandAccent")
-        } else {
-            return .clear
         }
     }
 }

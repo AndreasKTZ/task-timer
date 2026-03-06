@@ -8,16 +8,13 @@
 import Foundation
 import SwiftUI
 import SwiftData
-import Combine
 
 @Observable
 final class TimerManager {
     var selectedDate: Date = Calendar.current.startOfDay(for: Date())
     var activeTaskID: UUID?
-    private var timer: Timer?
-    var tick: Int = 0  // Publicly observable to trigger UI updates
-    var showBillableTime: Bool = true  // Toggle between actual and billable (rounded) hours
-    var isEditing: Bool = false  // True when user is editing a task name or time
+    var showBillableTime: Bool = true
+    var isEditing: Bool = false
 
     var isAnyTaskRunning: Bool {
         activeTaskID != nil
@@ -34,19 +31,23 @@ final class TimerManager {
         task.start()
         activeTaskID = task.id
 
-        // Start the timer for UI updates
-        startTimer()
-
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save after starting task: \(error.localizedDescription)")
+        }
     }
 
     func stopTask(_ task: Task, modelContext: ModelContext) {
         task.stop()
         if activeTaskID == task.id {
             activeTaskID = nil
-            stopTimer()
         }
-        try? modelContext.save()
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save after stopping task: \(error.localizedDescription)")
+        }
     }
 
     func toggleTask(_ task: Task, allTasks: [Task], modelContext: ModelContext) {
@@ -62,31 +63,30 @@ final class TimerManager {
             task.stop()
         }
         activeTaskID = nil
-        stopTimer()
-        try? modelContext.save()
-    }
-
-    func syncActiveTask(with tasks: [Task]) {
-        // Find if there's a running task and sync state
-        if let runningTask = tasks.first(where: { $0.isRunning }) {
-            activeTaskID = runningTask.id
-            startTimer()
-        } else {
-            activeTaskID = nil
-            stopTimer()
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save after stopping all tasks: \(error.localizedDescription)")
         }
     }
 
-    private func startTimer() {
-        stopTimer()
-        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
-            self?.tick += 1
+    /// Recovers from a previous session. Stops any orphaned running tasks
+    /// (e.g. from a force-quit) so accumulated time is preserved and the
+    /// UI doesn't get stuck in a TimelineView update loop.
+    func syncActiveTask(with tasks: [Task], modelContext: ModelContext) {
+        var didStop = false
+        for task in tasks where task.isRunning {
+            task.stop()
+            didStop = true
         }
-    }
-
-    private func stopTimer() {
-        timer?.invalidate()
-        timer = nil
+        activeTaskID = nil
+        if didStop {
+            do {
+                try modelContext.save()
+            } catch {
+                print("Failed to save after recovering orphaned tasks: \(error.localizedDescription)")
+            }
+        }
     }
 
     func navigateToDate(_ date: Date) {
