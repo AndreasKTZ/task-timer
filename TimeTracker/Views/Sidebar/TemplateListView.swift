@@ -18,12 +18,14 @@ struct TemplateListView: View {
     @FocusState private var isTextFieldFocused: Bool
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             // Header
             HStack {
                 Text(String(localized: "Skabeloner"))
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 10, weight: .bold))
+                    .textCase(.uppercase)
+                    .tracking(0.8)
+                    .foregroundStyle(.tertiary)
 
                 Spacer()
 
@@ -33,8 +35,11 @@ struct TemplateListView: View {
                     isTextFieldFocused = true
                 }) {
                     Image(systemName: "plus")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Color("BrandAccent"))
+                        .font(.system(size: 11, weight: .semibold))
+                        .foregroundStyle(.tertiary)
+                        .frame(width: 20, height: 20)
+                        .background(Color.primary.opacity(0.04))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
             }
@@ -45,7 +50,7 @@ struct TemplateListView: View {
                 HStack(spacing: 4) {
                     TextField(String(localized: "Navn"), text: $newTemplateName)
                         .textFieldStyle(.plain)
-                        .font(.system(size: 11))
+                        .font(.system(size: 12))
                         .focused($isTextFieldFocused)
                         .onSubmit {
                             addTemplate()
@@ -57,7 +62,7 @@ struct TemplateListView: View {
 
                     Button(action: addTemplate) {
                         Image(systemName: "checkmark")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.green)
                     }
                     .buttonStyle(.plain)
@@ -68,7 +73,7 @@ struct TemplateListView: View {
                         newTemplateName = ""
                     }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 9, weight: .semibold))
+                            .font(.system(size: 11, weight: .semibold))
                             .foregroundStyle(.red)
                     }
                     .buttonStyle(.plain)
@@ -79,7 +84,7 @@ struct TemplateListView: View {
             // Template list
             if templates.isEmpty && !isAddingTemplate {
                 Text(String(localized: "Ingen skabeloner"))
-                    .font(.system(size: 11))
+                    .font(.system(size: 12))
                     .foregroundStyle(.tertiary)
                     .padding(.horizontal, 8)
             } else {
@@ -100,7 +105,7 @@ struct TemplateListView: View {
                 }
             }
         }
-        .padding(12)
+        .padding(14)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 

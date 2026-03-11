@@ -24,123 +24,108 @@ struct TaskRowView: View {
     @FocusState private var isTimeFieldFocused: Bool
     @State private var isHovered = false
 
+    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
 
-    private var backgroundColor: Color {
-        if isActive {
-            return Color("BrandAccent").opacity(0.1)
-        } else if isSelected {
-            return Color("BrandAccent").opacity(0.06)
-        } else {
-            return Color.clear
-        }
+    private var displayedTime: String {
+        let _ = timerManager.tick
+        return task.formattedTime
     }
 
-    private var borderColor: Color {
-        isSelected ? Color("BrandAccent").opacity(0.5) : Color.clear
+    private var displayedHours: Double {
+        let _ = timerManager.tick
+        return timerManager.showBillableTime ? task.roundedDecimalHours : task.decimalHours
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            // Play/Pause button
+        HStack(spacing: 0) {
+            // Play/pause button
             Button(action: onToggle) {
-                Image(systemName: isActive ? "pause.fill" : "play.fill")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(isActive ? Color("BrandBackground") : Color("BrandAccent"))
-                    .frame(width: 28, height: 28)
-                    .background(isActive ? Color("BrandBackground").opacity(0.15) : Color("BrandAccent").opacity(0.15))
-                    .clipShape(Circle())
+                ZStack {
+                    Circle()
+                        .fill(isActive ? accentColor : accentColor.opacity(0.15))
+                        .frame(width: 30, height: 30)
+
+                    Image(systemName: isActive ? "pause.fill" : "play.fill")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(isActive ? .white : accentColor)
+                }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel(isActive ? String(localized: "Stop opgave") : String(localized: "Start opgave"))
-            .accessibilityHint(task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name)
-
-            // Project code picker
-            ProjectCodePicker(selectedCode: $task.projectCode)
+            .padding(.trailing, 8)
 
             // Task name
             if isEditingName {
-                HStack(spacing: 4) {
-                    TextField(String(localized: "Opgavenavn"), text: $editedName)
-                        .textFieldStyle(.plain)
-                        .font(.system(size: 14))
-                        .focused($isNameFieldFocused)
-                        .onSubmit {
-                            commitNameEdit()
-                        }
-
-                    Button(action: commitNameEdit) {
-                        Image(systemName: "checkmark")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.green)
+                TextField(String(localized: "Opgavenavn"), text: $editedName)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundStyle(.white)
+                    .focused($isNameFieldFocused)
+                    .onSubmit { commitNameEdit() }
+                    .onChange(of: isNameFieldFocused) { _, focused in
+                        if !focused { commitNameEdit() }
                     }
-                    .buttonStyle(.plain)
-
-                    Button(action: cancelNameEdit) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 11, weight: .semibold))
-                            .foregroundStyle(.red)
-                    }
-                    .buttonStyle(.plain)
-                }
+                    .frame(maxWidth: .infinity, alignment: .leading)
             } else {
                 Text(task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name)
-                    .font(.system(size: 14))
-                    .foregroundStyle(task.name.isEmpty ? .secondary : .primary)
+                    .font(.system(size: 13, weight: isActive ? .semibold : .regular))
+                    .foregroundStyle(task.name.isEmpty ? .white.opacity(0.25) : .white.opacity(0.85))
+                    .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
                     .onTapGesture {
+                        onSelect()
                         startNameEditing()
                     }
             }
 
-            Spacer()
+            // Project code picker
+            ProjectCodePicker(selectedCode: $task.projectCode)
+                .frame(width: 64)
 
-            // Time display (HH:MM:SS) - clickable to edit
+            // Time (HH:MM:SS)
             if isEditingTime {
                 TextField("00:00:00", text: $editedTime)
                     .textFieldStyle(.plain)
-                    .font(.system(size: 14, design: .monospaced))
+                    .font(.system(size: 12, weight: .medium, design: .monospaced))
+                    .foregroundStyle(.white)
                     .multilineTextAlignment(.trailing)
                     .focused($isTimeFieldFocused)
-                    .frame(width: 70)
-                    .onSubmit {
-                        commitTimeEdit()
+                    .frame(width: 68, alignment: .trailing)
+                    .onSubmit { commitTimeEdit() }
+                    .onChange(of: isTimeFieldFocused) { _, focused in
+                        if !focused { commitTimeEdit() }
                     }
             } else {
-                LiveTimeText(task: task, isActive: isActive)
+                Text(displayedTime)
+                    .font(.system(size: 12, weight: isActive ? .bold : .regular, design: .monospaced))
+                    .foregroundStyle(isActive ? .white : .white.opacity(0.5))
+                    .frame(width: 68, alignment: .trailing)
                     .contentShape(Rectangle())
                     .onTapGesture {
                         startTimeEditing()
                     }
-                    .help(String(localized: "Klik for at redigere tid"))
             }
 
             // Decimal hours
-            LiveDecimalHours(task: task, isActive: isActive, showBillable: timerManager.showBillableTime)
-
-            // Delete button
-            Button(action: onDelete) {
-                Image(systemName: "minus.circle.fill")
-                    .font(.system(size: 16))
-                    .foregroundStyle(.red.opacity(0.7))
-            }
-            .buttonStyle(.plain)
-            .opacity(isActive ? 0.5 : 1)
-            .accessibilityLabel(String(localized: "Slet opgave"))
+            Text(String(format: "%.2f", displayedHours))
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.3))
+                .frame(width: 44, alignment: .trailing)
         }
         .padding(.horizontal, 12)
-        .padding(.vertical, 8)
+        .padding(.vertical, 6)
+        .background(rowBackground)
         .onHover { hovering in
-            isHovered = hovering
+            withAnimation(.easeInOut(duration: 0.12)) {
+                isHovered = hovering
+            }
         }
-        .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(backgroundColor)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 6)
-                        .strokeBorder(borderColor, lineWidth: 1.5)
-                )
-        )
+        .overlay(alignment: .bottom) {
+            Rectangle()
+                .fill(Color.white.opacity(0.04))
+                .frame(height: 1)
+                .padding(.leading, 50)
+        }
         .contextMenu {
             Button(isActive ? String(localized: "Stop") : String(localized: "Start")) {
                 onToggle()
@@ -164,6 +149,17 @@ struct TaskRowView: View {
         }
     }
 
+    private var rowBackground: Color {
+        if isActive {
+            return accentColor.opacity(0.08)
+        } else if isHovered {
+            return Color.white.opacity(0.03)
+        }
+        return .clear
+    }
+
+    // MARK: - Editing
+
     private func startNameEditing() {
         editedName = task.name
         isEditingName = true
@@ -172,19 +168,14 @@ struct TaskRowView: View {
     }
 
     private func commitNameEdit() {
+        guard isEditingName else { return }
         let trimmed = editedName.trimmingCharacters(in: .whitespacesAndNewlines)
         task.name = String(trimmed.prefix(200))
         isEditingName = false
         timerManager.isEditing = false
     }
 
-    private func cancelNameEdit() {
-        isEditingName = false
-        timerManager.isEditing = false
-    }
-
     private func startTimeEditing() {
-        // Stop the task if running before editing (also clear TimerManager state)
         if task.isRunning {
             task.stop()
             if timerManager.activeTaskID == task.id {
@@ -198,9 +189,9 @@ struct TaskRowView: View {
     }
 
     private func commitTimeEdit() {
+        guard isEditingTime else { return }
         let trimmed = editedTime.trimmingCharacters(in: .whitespaces)
 
-        // Empty input cancels edit
         guard !trimmed.isEmpty else {
             isEditingTime = false
             timerManager.isEditing = false
@@ -212,19 +203,16 @@ struct TaskRowView: View {
 
         switch parts.count {
         case 3:
-            // HH:MM:SS — validate minutes and seconds are 0-59
             guard parts[1] >= 0, parts[1] < 60, parts[2] >= 0, parts[2] < 60, parts[0] >= 0 else { return }
             totalSeconds = parts[0] * 3600 + parts[1] * 60 + parts[2]
         case 2:
-            // HH:MM — validate minutes are 0-59
             guard parts[1] >= 0, parts[1] < 60, parts[0] >= 0 else { return }
             totalSeconds = parts[0] * 3600 + parts[1] * 60
         case 1:
-            // Just a number — treat as minutes
             guard parts[0] >= 0 else { return }
             totalSeconds = parts[0] * 60
         default:
-            return // Invalid format, stay in edit mode
+            return
         }
 
         if let seconds = totalSeconds {
@@ -233,54 +221,5 @@ struct TaskRowView: View {
 
         isEditingTime = false
         timerManager.isEditing = false
-    }
-}
-
-// MARK: - Live Time Display Helpers
-
-/// Displays formatted time (HH:MM:SS) with live updates only when the task is running.
-private struct LiveTimeText: View {
-    let task: Task
-    let isActive: Bool
-
-    var body: some View {
-        if isActive {
-            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                timeText
-            }
-        } else {
-            timeText
-        }
-    }
-
-    private var timeText: some View {
-        Text(task.formattedTime)
-            .font(.system(size: 14, design: .monospaced))
-            .foregroundStyle(.secondary)
-            .frame(width: 70, alignment: .trailing)
-    }
-}
-
-/// Displays decimal hours with live updates only when the task is running.
-private struct LiveDecimalHours: View {
-    let task: Task
-    let isActive: Bool
-    let showBillable: Bool
-
-    var body: some View {
-        if isActive {
-            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                hoursText
-            }
-        } else {
-            hoursText
-        }
-    }
-
-    private var hoursText: some View {
-        Text(String(format: "%.2f", showBillable ? task.roundedDecimalHours : task.decimalHours))
-            .font(.system(size: 14, design: .monospaced))
-            .foregroundStyle(.secondary)
-            .frame(width: 50, alignment: .trailing)
     }
 }

@@ -44,45 +44,12 @@ struct TimeTrackerApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("NMIC Time Tracker", id: "main") {
-            ContentView(timerManager: timerManager)
-        }
-        .modelContainer(sharedModelContainer)
-        .defaultSize(width: 650, height: 450)
-        .commands {
-            CommandGroup(replacing: .newItem) {
-                Button(String(localized: "Ny opgave")) {
-                    NotificationCenter.default.post(name: .addNewTask, object: nil)
-                }
-                .keyboardShortcut("n", modifiers: .command)
-            }
-
-            CommandMenu(String(localized: "Opgaver")) {
-                Button(String(localized: "Gå til i dag")) {
-                    NotificationCenter.default.post(name: .goToToday, object: nil)
-                }
-                .keyboardShortcut("t", modifiers: .command)
-
-                Divider()
-
-                Button(String(localized: "Vis faktisk tid")) {
-                    NotificationCenter.default.post(name: .showActualTime, object: nil)
-                }
-                .keyboardShortcut("1", modifiers: .command)
-
-                Button(String(localized: "Vis fakturerbar tid")) {
-                    NotificationCenter.default.post(name: .showBillableTime, object: nil)
-                }
-                .keyboardShortcut("2", modifiers: .command)
-            }
-        }
-
         Settings {
             SettingsView()
         }
 
         MenuBarExtra {
-            MenuBarView(timerManager: timerManager)
+            MenuBarContentView(timerManager: timerManager)
                 .modelContainer(sharedModelContainer)
         } label: {
             MenuBarLabel(timerManager: timerManager)

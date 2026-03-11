@@ -22,7 +22,7 @@ struct TaskListView: View {
 
     var body: some View {
         ScrollView {
-            LazyVStack(spacing: 4) {
+            LazyVStack(spacing: 0) {
                 ForEach(Array(sortedTasks.enumerated()), id: \.element.id) { index, task in
                     TaskRowView(
                         task: task,
@@ -41,8 +41,6 @@ struct TaskListView: View {
                     )
                 }
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
         }
     }
 }

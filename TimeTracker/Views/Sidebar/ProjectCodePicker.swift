@@ -12,6 +12,8 @@ struct ProjectCodePicker: View {
     @Binding var selectedCode: String?
     @Query(sort: \ProjectCode.sortOrder) private var projectCodes: [ProjectCode]
 
+    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
+
     var body: some View {
         Menu {
             Button(action: {
@@ -46,16 +48,16 @@ struct ProjectCodePicker: View {
         } label: {
             if let code = selectedCode {
                 Text(code)
-                    .font(.system(size: 10, weight: .medium))
-                    .foregroundStyle(Color("BrandAccent"))
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(accentColor)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(Color("BrandAccent").opacity(0.15))
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                    .background(accentColor.opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 3))
             } else {
                 Image(systemName: "tag")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary.opacity(0.6))
+                    .font(.system(size: 11))
+                    .foregroundStyle(.white.opacity(0.2))
             }
         }
         .menuStyle(.borderlessButton)

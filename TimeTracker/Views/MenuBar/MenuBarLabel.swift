@@ -18,12 +18,16 @@ struct MenuBarLabel: View {
 
     var body: some View {
         if let task = runningTask {
-            TimelineView(.periodic(from: .now, by: 1)) { _ in
-                HStack(spacing: 4) {
-                    Image(systemName: "timer")
-                    Text(task.formattedTime)
-                        .font(.system(.body, design: .monospaced))
-                }
+            let _ = timerManager.tick
+            let total = task.currentTotalSeconds
+            let h = total / 3600
+            let m = (total % 3600) / 60
+            let s = total % 60
+
+            HStack(spacing: 4) {
+                Image(systemName: "timer")
+                Text(String(format: "%02d:%02d:%02d", h, m, s))
+                    .font(.system(.body, design: .monospaced))
             }
         } else {
             Image(systemName: "timer")

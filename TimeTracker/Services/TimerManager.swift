@@ -16,6 +16,12 @@ final class TimerManager {
     var showBillableTime: Bool = true
     var isEditing: Bool = false
 
+    /// Incremented every second while a task is running.
+    /// Views read this to force a 1-second UI refresh without
+    /// using TimelineView (which conflicts with SwiftData @Query).
+    var tick: Int = 0
+    private var timer: Timer?
+
     var isAnyTaskRunning: Bool {
         activeTaskID != nil
     }
@@ -30,6 +36,7 @@ final class TimerManager {
         // Start the new task
         task.start()
         activeTaskID = task.id
+        startTimer()
 
         do {
             try modelContext.save()
@@ -42,6 +49,7 @@ final class TimerManager {
         task.stop()
         if activeTaskID == task.id {
             activeTaskID = nil
+            stopTimer()
         }
         do {
             try modelContext.save()
@@ -63,6 +71,7 @@ final class TimerManager {
             task.stop()
         }
         activeTaskID = nil
+        stopTimer()
         do {
             try modelContext.save()
         } catch {
@@ -70,23 +79,28 @@ final class TimerManager {
         }
     }
 
-    /// Recovers from a previous session. Stops any orphaned running tasks
-    /// (e.g. from a force-quit) so accumulated time is preserved and the
-    /// UI doesn't get stuck in a TimelineView update loop.
-    func syncActiveTask(with tasks: [Task], modelContext: ModelContext) {
-        var didStop = false
-        for task in tasks where task.isRunning {
-            task.stop()
-            didStop = true
+    /// Recovers from a previous session. If a task was left running
+    /// (e.g. from a force-quit), resume tracking it.
+    func syncActiveTask(with tasks: [Task]) {
+        if let runningTask = tasks.first(where: { $0.isRunning }) {
+            activeTaskID = runningTask.id
+            startTimer()
+        } else {
+            activeTaskID = nil
+            stopTimer()
         }
-        activeTaskID = nil
-        if didStop {
-            do {
-                try modelContext.save()
-            } catch {
-                print("Failed to save after recovering orphaned tasks: \(error.localizedDescription)")
-            }
+    }
+
+    private func startTimer() {
+        stopTimer()
+        timer = Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { [weak self] _ in
+            self?.tick += 1
         }
+    }
+
+    private func stopTimer() {
+        timer?.invalidate()
+        timer = nil
     }
 
     func navigateToDate(_ date: Date) {
@@ -111,5 +125,31 @@ final class TimerManager {
 
     var isToday: Bool {
         Calendar.current.isDateInToday(selectedDate)
+    }
+
+    // MARK: - Week Navigation
+
+    /// Returns the 7 dates (Mon–Sun) for the week containing `selectedDate`.
+    var currentWeekDates: [Date] {
+        let cal = Calendar.current
+        let weekday = cal.component(.weekday, from: selectedDate)
+        // Convert to Monday=0 ... Sunday=6
+        let daysFromMonday = weekday == 1 ? 6 : weekday - 2
+        guard let monday = cal.date(byAdding: .day, value: -daysFromMonday, to: cal.startOfDay(for: selectedDate)) else {
+            return []
+        }
+        return (0..<7).compactMap { cal.date(byAdding: .day, value: $0, to: monday) }
+    }
+
+    func goToPreviousWeek() {
+        if let newDate = Calendar.current.date(byAdding: .day, value: -7, to: selectedDate) {
+            selectedDate = newDate
+        }
+    }
+
+    func goToNextWeek() {
+        if let newDate = Calendar.current.date(byAdding: .day, value: 7, to: selectedDate) {
+            selectedDate = newDate
+        }
     }
 }

@@ -14,19 +14,19 @@ struct ProjectCodeRow: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: 6) {
+        HStack(spacing: 8) {
             Image(systemName: "tag.fill")
-                .font(.system(size: 10))
-                .foregroundStyle(Color("BrandAccent"))
+                .font(.system(size: 12))
+                .foregroundStyle(Color("BrandAccent").opacity(0.7))
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(projectCode.code)
-                    .font(.system(size: 11, weight: .medium))
+                    .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.primary)
 
                 if !projectCode.name.isEmpty {
                     Text(projectCode.name)
-                        .font(.system(size: 10))
+                        .font(.system(size: 11))
                         .foregroundStyle(.secondary)
                         .lineLimit(1)
                 }
@@ -35,16 +35,17 @@ struct ProjectCodeRow: View {
             Spacer()
 
             Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundStyle(.secondary.opacity(0.6))
+                Image(systemName: "xmark")
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
             }
             .buttonStyle(.plain)
+            .opacity(isHovered ? 1 : 0)
         }
         .padding(.horizontal, 8)
-        .padding(.vertical, 6)
-        .background(isHovered ? Color("BrandAccent").opacity(0.15) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: 4))
+        .padding(.vertical, 8)
+        .background(isHovered ? Color.primary.opacity(0.04) : .clear)
+        .clipShape(RoundedRectangle(cornerRadius: 6))
         .contentShape(Rectangle())
         .onHover { hovering in
             isHovered = hovering
