@@ -169,10 +169,12 @@ struct MenuBarContentView: View {
             HStack(spacing: 16) {
                 // Left: Play/Pause button
                 Button(action: {
-                    if let task = activeTask {
-                        timerManager.stopTask(task, modelContext: modelContext)
-                    } else if let task = selectedTask ?? tasksForSelectedDate.first {
-                        timerManager.startTask(task, allTasks: allTasks, modelContext: modelContext)
+                    withAnimation(.easeInOut(duration: 0.35)) {
+                        if let task = activeTask {
+                            timerManager.stopTask(task, modelContext: modelContext)
+                        } else if let task = selectedTask ?? tasksForSelectedDate.first {
+                            timerManager.startTask(task, allTasks: allTasks, modelContext: modelContext)
+                        }
                     }
                 }) {
                     ZStack {
@@ -186,6 +188,7 @@ struct MenuBarContentView: View {
                         Image(systemName: isRunning ? "pause.fill" : "play.fill")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(Theme.heroText(colorScheme, isRunning: isRunning))
+                            .contentTransition(.symbolEffect(.replace))
                     }
                 }
                 .buttonStyle(.plain)
@@ -217,10 +220,18 @@ struct MenuBarContentView: View {
                                 .foregroundStyle(Theme.heroSubtext(colorScheme, isRunning: isRunning))
                                 .lineLimit(1)
                         }
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
+                        ))
                     } else {
                         Text(String(localized: "Ingen aktiv session"))
                             .font(.system(size: 13, weight: .medium))
                             .foregroundStyle(Theme.heroMutedText(colorScheme, isRunning: isRunning))
+                            .transition(.asymmetric(
+                                insertion: .move(edge: .bottom).combined(with: .opacity),
+                                removal: .move(edge: .top).combined(with: .opacity)
+                            ))
                     }
                 }
 
@@ -229,6 +240,8 @@ struct MenuBarContentView: View {
         }
         .frame(height: 110)
         .clipped()
+        .animation(.easeInOut(duration: 0.35), value: isRunning)
+        .animation(.easeInOut(duration: 0.35), value: heroDisplayTask?.id)
     }
 
     // MARK: - Column Headers

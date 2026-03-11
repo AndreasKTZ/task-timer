@@ -45,11 +45,14 @@ struct TimeTrackerApp: App {
 
     @AppStorage("appearanceMode") private var appearanceMode = "system"
 
-    private var resolvedColorScheme: ColorScheme? {
+    private func applyAppearance() {
         switch appearanceMode {
-        case "light": .light
-        case "dark": .dark
-        default: nil
+        case "light":
+            NSApp.appearance = NSAppearance(named: .aqua)
+        case "dark":
+            NSApp.appearance = NSAppearance(named: .darkAqua)
+        default:
+            NSApp.appearance = nil
         }
     }
 
@@ -57,7 +60,8 @@ struct TimeTrackerApp: App {
         MenuBarExtra {
             MenuBarContentView(timerManager: timerManager)
                 .modelContainer(sharedModelContainer)
-                .preferredColorScheme(resolvedColorScheme)
+                .onChange(of: appearanceMode) { _, _ in applyAppearance() }
+                .onAppear { applyAppearance() }
         } label: {
             MenuBarLabel(timerManager: timerManager)
                 .modelContainer(sharedModelContainer)
