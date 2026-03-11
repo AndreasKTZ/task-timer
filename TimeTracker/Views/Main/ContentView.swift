@@ -74,12 +74,15 @@ struct MenuBarContentView: View {
                         showSettings = false
                     }
                 })
+                .transition(.move(edge: .trailing).combined(with: .opacity))
             } else {
                 mainContent
+                    .transition(.move(edge: .leading).combined(with: .opacity))
             }
         }
         .frame(width: 420, height: 600)
         .background(Theme.panelBackground(colorScheme))
+        .animation(.easeInOut(duration: 0.2), value: showSettings)
         .onTapGesture {
             // Resign first responder to dismiss any active text field
             NSApp.keyWindow?.makeFirstResponder(nil)
@@ -299,6 +302,10 @@ struct MenuBarContentView: View {
                             showCodeBanner(for: task)
                         }
                     )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
                 }
             }
         }
@@ -327,11 +334,13 @@ struct MenuBarContentView: View {
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
                 .foregroundStyle(Theme.textSecondary(colorScheme))
                 .frame(width: 68, alignment: .trailing)
+                .contentTransition(.numericText())
 
             Text(String(format: "%.2f", totalDecimalHours))
                 .font(.system(size: 12, weight: .bold, design: .monospaced))
                 .foregroundStyle(Theme.accent)
                 .frame(width: 44, alignment: .trailing)
+                .contentTransition(.numericText())
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -386,6 +395,7 @@ struct MenuBarContentView: View {
             Spacer()
         }
         .frame(height: 200)
+        .transition(.opacity)
     }
 
     // MARK: - Actions
@@ -720,73 +730,83 @@ private struct DayStripView: View {
     private let calendar = Calendar.current
     private let dayLabels = ["Ma", "Ti", "On", "To", "Fr", "L\u{00f8}", "S\u{00f8}"]
 
+    private var weekStrip: some View {
+        HStack(spacing: 0) {
+            Button(action: { timerManager.goToPreviousWeek() }) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+
+            HStack(spacing: 0) {
+                ForEach(Array(timerManager.currentWeekDates.enumerated()), id: \.offset) { index, date in
+                    DayCell(
+                        label: dayLabels[index],
+                        number: calendar.component(.day, from: date),
+                        isSelected: calendar.isDate(date, inSameDayAs: timerManager.selectedDate),
+                        isToday: calendar.isDateInToday(date),
+                        onTap: { timerManager.navigateToDate(date) }
+                    )
+                    .frame(maxWidth: .infinity)
+                }
+            }
+
+            Button(action: { timerManager.goToNextWeek() }) {
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 8)
+        .padding(.vertical, 8)
+        .background(Theme.surfaceTint(colorScheme))
+    }
+
+    private var todayBanner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "calendar")
+                .font(.system(size: 11))
+                .foregroundStyle(Theme.accent)
+
+            Text(String(localized: "Du kigger p\u{00e5} en anden dag"))
+                .font(.system(size: 11, weight: .medium))
+                .foregroundStyle(Theme.textSecondary(colorScheme))
+
+            Spacer()
+
+            Button(action: { timerManager.goToToday() }) {
+                Text(String(localized: "G\u{00e5} til i dag"))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 4)
+                    .background(Theme.accent)
+                    .clipShape(RoundedRectangle(cornerRadius: 5))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Theme.todayBannerBackground(colorScheme))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 0) {
-                // Previous week
-                Button(action: { timerManager.goToPreviousWeek() }) {
-                    Image(systemName: "chevron.left")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.textTertiary(colorScheme))
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
+            weekStrip
 
-                // Day cells — equal width distribution
-                HStack(spacing: 0) {
-                    ForEach(Array(timerManager.currentWeekDates.enumerated()), id: \.offset) { index, date in
-                        DayCell(
-                            label: dayLabels[index],
-                            number: calendar.component(.day, from: date),
-                            isSelected: calendar.isDate(date, inSameDayAs: timerManager.selectedDate),
-                            isToday: calendar.isDateInToday(date),
-                            onTap: { timerManager.navigateToDate(date) }
-                        )
-                        .frame(maxWidth: .infinity)
-                    }
+            // Banner area — clipped so it slides out from under the week strip
+            VStack(spacing: 0) {
+                if !timerManager.isToday {
+                    todayBanner
+                        .transition(.move(edge: .top))
                 }
-
-                // Next week
-                Button(action: { timerManager.goToNextWeek() }) {
-                    Image(systemName: "chevron.right")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(Theme.textTertiary(colorScheme))
-                        .frame(width: 28, height: 28)
-                }
-                .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
-            .padding(.vertical, 8)
-            .background(Theme.surfaceTint(colorScheme))
-
-            // "Go to today" banner
-            if !timerManager.isToday {
-                HStack(spacing: 8) {
-                    Image(systemName: "calendar")
-                        .font(.system(size: 11))
-                        .foregroundStyle(Theme.accent)
-
-                    Text(String(localized: "Du kigger p\u{00e5} en anden dag"))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.textSecondary(colorScheme))
-
-                    Spacer()
-
-                    Button(action: { timerManager.goToToday() }) {
-                        Text(String(localized: "G\u{00e5} til i dag"))
-                            .font(.system(size: 11, weight: .bold))
-                            .foregroundStyle(.white)
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 4)
-                            .background(Theme.accent)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                }
-                .padding(.horizontal, 14)
-                .padding(.vertical, 6)
-                .background(Theme.todayBannerBackground(colorScheme))
-            }
+            .clipped()
+            .animation(.easeInOut(duration: 0.2), value: timerManager.isToday)
 
             Rectangle()
                 .fill(Theme.separator(colorScheme))
@@ -819,6 +839,8 @@ private struct DayCell: View {
             }
         }
         .buttonStyle(.plain)
+        .scaleEffect(isSelected ? 1.0 : 0.95)
+        .animation(.spring(response: 0.25, dampingFraction: 0.7), value: isSelected)
     }
 
     private var foregroundColor: Color {
@@ -931,6 +953,7 @@ private struct BottomBar: View {
                 .padding(.vertical, 7)
                 .background(timerManager.showBillableTime ? Theme.accent.opacity(0.12) : Theme.surfaceTint(colorScheme))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
+                .animation(.easeOut(duration: 0.15), value: timerManager.showBillableTime)
             }
             .buttonStyle(.plain)
 

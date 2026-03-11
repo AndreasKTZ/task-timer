@@ -48,6 +48,7 @@ struct TaskRowView: View {
                     Image(systemName: isActive ? "pause.fill" : "play.fill")
                         .font(.system(size: 10, weight: .bold))
                         .foregroundStyle(isActive ? .white : Theme.accent)
+                        .contentTransition(.symbolEffect(.replace))
                 }
             }
             .buttonStyle(.plain)
@@ -130,6 +131,7 @@ struct TaskRowView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(rowBackground)
+        .animation(.easeInOut(duration: 0.2), value: isActive)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) {
                 isHovered = hovering
