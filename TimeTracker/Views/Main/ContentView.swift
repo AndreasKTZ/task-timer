@@ -301,6 +301,9 @@ struct MenuBarContentView: View {
                         isActive: task.isRunning,
                         isSelected: selectedTaskID == task.id,
                         onToggle: {
+                            if !task.isRunning {
+                                selectedTaskID = task.id
+                            }
                             timerManager.toggleTask(task, allTasks: allTasks, modelContext: modelContext)
                         },
                         onDelete: {
