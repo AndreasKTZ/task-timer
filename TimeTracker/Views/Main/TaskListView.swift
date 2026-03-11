@@ -37,7 +37,8 @@ struct TaskListView: View {
                         },
                         onSelect: {
                             onSelectTask(index)
-                        }
+                        },
+                        onEditCode: {}
                     )
                 }
             }

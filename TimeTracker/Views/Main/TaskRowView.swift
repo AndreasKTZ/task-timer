@@ -15,6 +15,7 @@ struct TaskRowView: View {
     var onToggle: () -> Void
     var onDelete: () -> Void
     var onSelect: () -> Void
+    var onEditCode: () -> Void
 
     @State private var isEditingName = false
     @State private var editedName: String = ""
@@ -78,9 +79,24 @@ struct TaskRowView: View {
                     }
             }
 
-            // Project code picker
-            ProjectCodePicker(selectedCode: $task.projectCode)
-                .frame(width: 64)
+            // Project code — tap to edit via banner
+            Button(action: onEditCode) {
+                if let code = task.projectCode {
+                    Text(code)
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(accentColor)
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 2)
+                        .background(accentColor.opacity(0.12))
+                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                } else {
+                    Image(systemName: "tag")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.white.opacity(0.2))
+                }
+            }
+            .buttonStyle(.plain)
+            .frame(width: 64)
 
             // Time (HH:MM:SS)
             if isEditingTime {
@@ -135,6 +151,10 @@ struct TaskRowView: View {
 
             Button(String(localized: "Rediger navn")) {
                 startNameEditing()
+            }
+
+            Button(String(localized: "Rediger projektkode")) {
+                onEditCode()
             }
 
             Button(String(localized: "Rediger tid")) {

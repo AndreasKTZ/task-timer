@@ -15,6 +15,12 @@ struct MenuBarContentView: View {
     @Bindable var timerManager: TimerManager
     @State private var taskToDelete: Task?
     @State private var selectedTaskID: UUID?
+    @State private var showAddBanner = false
+    @State private var newTaskName = ""
+    @FocusState private var isAddFieldFocused: Bool
+    @State private var codeEditTask: Task?
+    @State private var editedCode = ""
+    @FocusState private var isCodeFieldFocused: Bool
 
     private var tasksForSelectedDate: [Task] {
         allTasks.filter { task in
@@ -88,7 +94,7 @@ struct MenuBarContentView: View {
                     addTaskFromTemplate(name)
                 },
                 onAddEmpty: {
-                    addTask()
+                    showAddTaskBanner()
                 }
             )
         }
@@ -108,6 +114,20 @@ struct MenuBarContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        // Inline add-task banner (green themed)
+        .overlay(alignment: .bottom) {
+            if showAddBanner {
+                addTaskBanner
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        // Inline project code banner (blue themed)
+        .overlay(alignment: .bottom) {
+            if codeEditTask != nil {
+                projectCodeBanner
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
     }
 
     // MARK: - Hero Header
@@ -116,12 +136,16 @@ struct MenuBarContentView: View {
         let isRunning = activeTask != nil
 
         return ZStack {
-            // Red/pink gradient background
+            // Gradient background — red/pink when active, grey when idle
             LinearGradient(
-                colors: [
+                colors: isRunning ? [
                     Color(red: 0.75, green: 0.18, blue: 0.28).opacity(0.5),
                     Color(red: 0.45, green: 0.10, blue: 0.18).opacity(0.7),
                     Color(red: 0.20, green: 0.08, blue: 0.12)
+                ] : [
+                    Color(red: 0.22, green: 0.23, blue: 0.25).opacity(0.5),
+                    Color(red: 0.16, green: 0.17, blue: 0.19).opacity(0.7),
+                    Color(red: 0.12, green: 0.13, blue: 0.15)
                 ],
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
@@ -242,6 +266,9 @@ struct MenuBarContentView: View {
                         },
                         onSelect: {
                             selectedTaskID = task.id
+                        },
+                        onEditCode: {
+                            showCodeBanner(for: task)
                         }
                     )
                 }
@@ -313,7 +340,7 @@ struct MenuBarContentView: View {
                     .foregroundStyle(.white.opacity(0.3))
             }
 
-            Button(action: addTask) {
+            Button(action: showAddTaskBanner) {
                 HStack(spacing: 5) {
                     Image(systemName: "plus")
                         .font(.system(size: 11, weight: .bold))
@@ -378,6 +405,203 @@ struct MenuBarContentView: View {
             }
             modelContext.delete(task)
             taskToDelete = nil
+        }
+    }
+
+    // MARK: - Add Task Banner
+
+    private var addTaskBanner: some View {
+        let greenColor = Color(red: 0.20, green: 0.72, blue: 0.45)
+
+        return HStack(spacing: 12) {
+            Image(systemName: "plus.circle.fill")
+                .font(.system(size: 18))
+                .foregroundStyle(greenColor)
+
+            TextField(String(localized: "Opgavenavn"), text: $newTaskName)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, weight: .medium))
+                .foregroundStyle(.white)
+                .focused($isAddFieldFocused)
+                .onSubmit { commitAddTask() }
+                .onChange(of: isAddFieldFocused) { _, focused in
+                    if !focused { commitAddTask() }
+                }
+
+            Spacer()
+
+            Button(action: { cancelAdd() }) {
+                Text(String(localized: "Annuller"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: { commitAddTask() }) {
+                Text(String(localized: "Tilføj"))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(greenColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(red: 0.12, green: 0.17, blue: 0.14))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(greenColor.opacity(0.5))
+                .frame(height: 1)
+        }
+    }
+
+    private func showAddTaskBanner() {
+        newTaskName = ""
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showAddBanner = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isAddFieldFocused = true
+        }
+    }
+
+    private func commitAddTask() {
+        guard showAddBanner else { return }
+        let trimmed = newTaskName.trimmingCharacters(in: .whitespacesAndNewlines)
+        withAnimation(.easeInOut(duration: 0.2)) {
+            let newTask = Task(
+                name: String(trimmed.prefix(200)),
+                date: timerManager.selectedDate,
+                sortOrder: tasksForSelectedDate.count
+            )
+            modelContext.insert(newTask)
+            showAddBanner = false
+            newTaskName = ""
+        }
+    }
+
+    private func cancelAdd() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showAddBanner = false
+            newTaskName = ""
+        }
+    }
+
+    // MARK: - Project Code Banner
+
+    private var projectCodeBanner: some View {
+        let blueColor = Color(red: 0.30, green: 0.55, blue: 0.90)
+        let taskName = codeEditTask.map { $0.name.isEmpty ? String(localized: "Unavngivet opgave") : $0.name } ?? ""
+
+        return HStack(spacing: 12) {
+            Image(systemName: "tag.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(blueColor)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(taskName)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.4))
+                    .lineLimit(1)
+
+                TextField(String(localized: "Projektkode"), text: $editedCode)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.white)
+                    .focused($isCodeFieldFocused)
+                    .onSubmit { commitCodeEdit() }
+                    .onChange(of: isCodeFieldFocused) { _, focused in
+                        if !focused { commitCodeEdit() }
+                    }
+            }
+
+            Spacer()
+
+            if codeEditTask?.projectCode != nil {
+                Button(action: { clearCode() }) {
+                    Text(String(localized: "Fjern"))
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.7))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(Color.white.opacity(0.1))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+            }
+
+            Button(action: { cancelCodeEdit() }) {
+                Text(String(localized: "Annuller"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.white.opacity(0.7))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Color.white.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: { commitCodeEdit() }) {
+                Text(String(localized: "Gem"))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(blueColor)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Color(red: 0.12, green: 0.14, blue: 0.18))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(blueColor.opacity(0.5))
+                .frame(height: 1)
+        }
+    }
+
+    private func showCodeBanner(for task: Task) {
+        editedCode = task.projectCode ?? ""
+        withAnimation(.easeInOut(duration: 0.15)) {
+            codeEditTask = task
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isCodeFieldFocused = true
+        }
+    }
+
+    private func commitCodeEdit() {
+        guard let task = codeEditTask else { return }
+        let trimmed = editedCode.trimmingCharacters(in: .whitespacesAndNewlines)
+        task.projectCode = trimmed.isEmpty ? nil : String(trimmed.prefix(20))
+        withAnimation(.easeInOut(duration: 0.15)) {
+            codeEditTask = nil
+            editedCode = ""
+        }
+    }
+
+    private func clearCode() {
+        guard let task = codeEditTask else { return }
+        task.projectCode = nil
+        withAnimation(.easeInOut(duration: 0.15)) {
+            codeEditTask = nil
+            editedCode = ""
+        }
+    }
+
+    private func cancelCodeEdit() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            codeEditTask = nil
+            editedCode = ""
         }
     }
 
@@ -447,63 +671,76 @@ private struct DayStripView: View {
     private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
 
     var body: some View {
-        HStack(spacing: 0) {
-            // Previous week — always visible
-            Button(action: { timerManager.goToPreviousWeek() }) {
-                Image(systemName: "chevron.left")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.plain)
-
-            // Day cells — equal width distribution
+        VStack(spacing: 0) {
             HStack(spacing: 0) {
-                ForEach(Array(timerManager.currentWeekDates.enumerated()), id: \.offset) { index, date in
-                    DayCell(
-                        label: dayLabels[index],
-                        number: calendar.component(.day, from: date),
-                        isSelected: calendar.isDate(date, inSameDayAs: timerManager.selectedDate),
-                        isToday: calendar.isDateInToday(date),
-                        onTap: { timerManager.navigateToDate(date) }
-                    )
-                    .frame(maxWidth: .infinity)
+                // Previous week
+                Button(action: { timerManager.goToPreviousWeek() }) {
+                    Image(systemName: "chevron.left")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .frame(width: 28, height: 28)
                 }
+                .buttonStyle(.plain)
+
+                // Day cells — equal width distribution
+                HStack(spacing: 0) {
+                    ForEach(Array(timerManager.currentWeekDates.enumerated()), id: \.offset) { index, date in
+                        DayCell(
+                            label: dayLabels[index],
+                            number: calendar.component(.day, from: date),
+                            isSelected: calendar.isDate(date, inSameDayAs: timerManager.selectedDate),
+                            isToday: calendar.isDateInToday(date),
+                            onTap: { timerManager.navigateToDate(date) }
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // Next week
+                Button(action: { timerManager.goToNextWeek() }) {
+                    Image(systemName: "chevron.right")
+                        .font(.system(size: 10, weight: .semibold))
+                        .foregroundStyle(.white.opacity(0.35))
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 8)
+            .padding(.vertical, 8)
+            .background(Color.white.opacity(0.02))
+
+            // "Go to today" banner
+            if !timerManager.isToday {
+                HStack(spacing: 8) {
+                    Image(systemName: "calendar")
+                        .font(.system(size: 11))
+                        .foregroundStyle(accentColor)
+
+                    Text(String(localized: "Du kigger på en anden dag"))
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.white.opacity(0.5))
+
+                    Spacer()
+
+                    Button(action: { timerManager.goToToday() }) {
+                        Text(String(localized: "Gå til i dag"))
+                            .font(.system(size: 11, weight: .bold))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 4)
+                            .background(accentColor)
+                            .clipShape(RoundedRectangle(cornerRadius: 5))
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 14)
+                .padding(.vertical, 6)
+                .background(Color(red: 0.16, green: 0.12, blue: 0.13))
             }
 
-            // Next week — always visible
-            Button(action: { timerManager.goToNextWeek() }) {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.35))
-                    .frame(width: 28, height: 28)
-            }
-            .buttonStyle(.plain)
-        }
-        .padding(.horizontal, 8)
-        .padding(.vertical, 8)
-        .background(Color.white.opacity(0.02))
-        .overlay(alignment: .bottom) {
             Rectangle()
                 .fill(Color.white.opacity(0.06))
                 .frame(height: 1)
-        }
-        // "I dag" button overlaid when not on today
-        .overlay(alignment: .bottomTrailing) {
-            if !timerManager.isToday {
-                Button(action: { timerManager.goToToday() }) {
-                    Text(String(localized: "I dag"))
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(accentColor)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(accentColor.opacity(0.15))
-                        .clipShape(RoundedRectangle(cornerRadius: 3))
-                }
-                .buttonStyle(.plain)
-                .padding(.trailing, 40)
-                .padding(.bottom, 2)
-            }
         }
     }
 }
