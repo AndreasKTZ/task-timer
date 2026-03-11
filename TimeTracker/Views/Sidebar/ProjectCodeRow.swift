@@ -9,30 +9,37 @@ import SwiftUI
 
 struct ProjectCodeRow: View {
     let projectCode: ProjectCode
+    let onEdit: () -> Void
     let onDelete: () -> Void
 
     @State private var isHovered = false
 
     var body: some View {
         HStack(spacing: 8) {
-            Image(systemName: "tag.fill")
-                .font(.system(size: 12))
-                .foregroundStyle(Color("BrandAccent").opacity(0.7))
+            Button(action: onEdit) {
+                HStack(spacing: 8) {
+                    Image(systemName: "tag.fill")
+                        .font(.system(size: 12))
+                        .foregroundStyle(Theme.accent.opacity(0.7))
 
-            VStack(alignment: .leading, spacing: 1) {
-                Text(projectCode.code)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.primary)
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(projectCode.code)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(.primary)
 
-                if !projectCode.name.isEmpty {
-                    Text(projectCode.name)
-                        .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
+                        if !projectCode.name.isEmpty {
+                            Text(projectCode.name)
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                        }
+                    }
+
+                    Spacer()
                 }
+                .contentShape(Rectangle())
             }
-
-            Spacer()
+            .buttonStyle(.plain)
 
             Button(action: onDelete) {
                 Image(systemName: "xmark")

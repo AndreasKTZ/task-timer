@@ -43,14 +43,21 @@ struct TimeTrackerApp: App {
         }
     }
 
-    var body: some Scene {
-        Settings {
-            SettingsView()
-        }
+    @AppStorage("appearanceMode") private var appearanceMode = "system"
 
+    private var resolvedColorScheme: ColorScheme? {
+        switch appearanceMode {
+        case "light": .light
+        case "dark": .dark
+        default: nil
+        }
+    }
+
+    var body: some Scene {
         MenuBarExtra {
             MenuBarContentView(timerManager: timerManager)
                 .modelContainer(sharedModelContainer)
+                .preferredColorScheme(resolvedColorScheme)
         } label: {
             MenuBarLabel(timerManager: timerManager)
                 .modelContainer(sharedModelContainer)

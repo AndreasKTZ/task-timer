@@ -8,6 +8,7 @@
 import SwiftUI
 
 struct TaskRowView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Bindable var task: Task
     @Bindable var timerManager: TimerManager
     var isActive: Bool
@@ -25,8 +26,6 @@ struct TaskRowView: View {
     @FocusState private var isTimeFieldFocused: Bool
     @State private var isHovered = false
 
-    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
-
     private var displayedTime: String {
         let _ = timerManager.tick
         return task.formattedTime
@@ -43,12 +42,12 @@ struct TaskRowView: View {
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .fill(isActive ? accentColor : accentColor.opacity(0.15))
+                        .fill(isActive ? Theme.accent : Theme.accent.opacity(0.15))
                         .frame(width: 30, height: 30)
 
                     Image(systemName: isActive ? "pause.fill" : "play.fill")
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(isActive ? .white : accentColor)
+                        .foregroundStyle(isActive ? .white : Theme.accent)
                 }
             }
             .buttonStyle(.plain)
@@ -59,7 +58,7 @@ struct TaskRowView: View {
                 TextField(String(localized: "Opgavenavn"), text: $editedName)
                     .textFieldStyle(.plain)
                     .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textPrimary(colorScheme))
                     .focused($isNameFieldFocused)
                     .onSubmit { commitNameEdit() }
                     .onChange(of: isNameFieldFocused) { _, focused in
@@ -69,7 +68,7 @@ struct TaskRowView: View {
             } else {
                 Text(task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name)
                     .font(.system(size: 13, weight: isActive ? .semibold : .regular))
-                    .foregroundStyle(task.name.isEmpty ? .white.opacity(0.25) : .white.opacity(0.85))
+                    .foregroundStyle(task.name.isEmpty ? Theme.textQuaternary(colorScheme) : Theme.textPrimary(colorScheme))
                     .lineLimit(1)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .contentShape(Rectangle())
@@ -84,15 +83,15 @@ struct TaskRowView: View {
                 if let code = task.projectCode {
                     Text(code)
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(accentColor)
+                        .foregroundStyle(Theme.accent)
                         .padding(.horizontal, 6)
                         .padding(.vertical, 2)
-                        .background(accentColor.opacity(0.12))
+                        .background(Theme.accent.opacity(0.12))
                         .clipShape(RoundedRectangle(cornerRadius: 3))
                 } else {
                     Image(systemName: "tag")
                         .font(.system(size: 11))
-                        .foregroundStyle(.white.opacity(0.2))
+                        .foregroundStyle(Theme.textQuaternary(colorScheme))
                 }
             }
             .buttonStyle(.plain)
@@ -103,7 +102,7 @@ struct TaskRowView: View {
                 TextField("00:00:00", text: $editedTime)
                     .textFieldStyle(.plain)
                     .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textPrimary(colorScheme))
                     .multilineTextAlignment(.trailing)
                     .focused($isTimeFieldFocused)
                     .frame(width: 68, alignment: .trailing)
@@ -114,7 +113,7 @@ struct TaskRowView: View {
             } else {
                 Text(displayedTime)
                     .font(.system(size: 12, weight: isActive ? .bold : .regular, design: .monospaced))
-                    .foregroundStyle(isActive ? .white : .white.opacity(0.5))
+                    .foregroundStyle(isActive ? Theme.textPrimary(colorScheme) : Theme.textSecondary(colorScheme))
                     .frame(width: 68, alignment: .trailing)
                     .contentShape(Rectangle())
                     .onTapGesture {
@@ -125,7 +124,7 @@ struct TaskRowView: View {
             // Decimal hours
             Text(String(format: "%.2f", displayedHours))
                 .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.3))
+                .foregroundStyle(Theme.textTertiary(colorScheme))
                 .frame(width: 44, alignment: .trailing)
         }
         .padding(.horizontal, 12)
@@ -138,7 +137,7 @@ struct TaskRowView: View {
         }
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color.white.opacity(0.04))
+                .fill(Theme.separator(colorScheme).opacity(0.6))
                 .frame(height: 1)
                 .padding(.leading, 50)
         }
@@ -171,9 +170,9 @@ struct TaskRowView: View {
 
     private var rowBackground: Color {
         if isActive {
-            return accentColor.opacity(0.08)
+            return Theme.accent.opacity(0.08)
         } else if isHovered {
-            return Color.white.opacity(0.03)
+            return Theme.hoverBackground(colorScheme)
         }
         return .clear
     }

@@ -9,11 +9,11 @@
 import SwiftUI
 
 struct WeekStripView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Bindable var timerManager: TimerManager
 
     private let calendar = Calendar.current
     private let dayLabels = ["Ma", "Ti", "On", "To", "Fr", "L\u{00f8}", "S\u{00f8}"]
-    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
 
     private var showTodayButton: Bool {
         !timerManager.isToday
@@ -24,7 +24,7 @@ struct WeekStripView: View {
             Button(action: { timerManager.goToPreviousWeek() }) {
                 Image(systemName: "chevron.left")
                     .font(.system(size: 11, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
                     .frame(width: 28, height: 28)
             }
             .buttonStyle(.plain)
@@ -38,7 +38,6 @@ struct WeekStripView: View {
                         dayNumber: calendar.component(.day, from: date),
                         isSelected: calendar.isDate(date, inSameDayAs: timerManager.selectedDate),
                         isToday: calendar.isDateInToday(date),
-                        accentColor: accentColor,
                         onTap: {
                             timerManager.navigateToDate(date)
                         }
@@ -52,10 +51,10 @@ struct WeekStripView: View {
                 Button(action: { timerManager.goToToday() }) {
                     Text(String(localized: "I dag"))
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(accentColor)
+                        .foregroundStyle(Theme.accent)
                         .padding(.horizontal, 8)
                         .padding(.vertical, 4)
-                        .background(accentColor.opacity(0.15))
+                        .background(Theme.accent.opacity(0.15))
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
@@ -63,7 +62,7 @@ struct WeekStripView: View {
                 Button(action: { timerManager.goToNextWeek() }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 11, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.3))
+                        .foregroundStyle(Theme.textTertiary(colorScheme))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
@@ -73,18 +72,18 @@ struct WeekStripView: View {
         .padding(.vertical, 10)
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(Theme.separator(colorScheme))
                 .frame(height: 1)
         }
     }
 }
 
 private struct WeekDayCell: View {
+    @Environment(\.colorScheme) private var colorScheme
     let dayLabel: String
     let dayNumber: Int
     let isSelected: Bool
     let isToday: Bool
-    let accentColor: Color
     let onTap: () -> Void
 
     var body: some View {
@@ -92,7 +91,7 @@ private struct WeekDayCell: View {
             VStack(spacing: 2) {
                 Text(dayLabel)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(isSelected ? accentColor : .white.opacity(0.25))
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.textQuaternary(colorScheme))
 
                 Text("\(dayNumber)")
                     .font(.system(size: 12, weight: isToday ? .bold : .medium))
@@ -107,12 +106,12 @@ private struct WeekDayCell: View {
 
     private var foregroundColor: Color {
         if isSelected { return .white }
-        if isToday { return accentColor }
-        return .white.opacity(0.6)
+        if isToday { return Theme.accent }
+        return Theme.textSecondary(colorScheme)
     }
 
     private var backgroundColor: Color {
-        if isSelected { return accentColor }
+        if isSelected { return Theme.accent }
         return .clear
     }
 }
@@ -120,5 +119,4 @@ private struct WeekDayCell: View {
 #Preview {
     WeekStripView(timerManager: TimerManager())
         .frame(width: 420)
-        .background(Color(red: 0.11, green: 0.12, blue: 0.14))
 }

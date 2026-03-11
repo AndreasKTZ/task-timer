@@ -10,6 +10,7 @@ import SwiftData
 
 struct MenuBarContentView: View {
     @Environment(\.modelContext) private var modelContext
+    @Environment(\.colorScheme) private var colorScheme
     @Query private var allTasks: [Task]
     @Query(sort: \ProjectCode.sortOrder) private var projectCodes: [ProjectCode]
     @Bindable var timerManager: TimerManager
@@ -21,6 +22,7 @@ struct MenuBarContentView: View {
     @State private var codeEditTask: Task?
     @State private var editedCode = ""
     @FocusState private var isCodeFieldFocused: Bool
+    @State private var showSettings = false
 
     private var tasksForSelectedDate: [Task] {
         allTasks.filter { task in
@@ -65,6 +67,29 @@ struct MenuBarContentView: View {
     }
 
     var body: some View {
+        Group {
+            if showSettings {
+                InlineSettingsView(onBack: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showSettings = false
+                    }
+                })
+            } else {
+                mainContent
+            }
+        }
+        .frame(width: 420, height: 600)
+        .background(Theme.panelBackground(colorScheme))
+        .onTapGesture {
+            // Resign first responder to dismiss any active text field
+            NSApp.keyWindow?.makeFirstResponder(nil)
+        }
+        .onAppear {
+            timerManager.syncActiveTask(with: allTasks)
+        }
+    }
+
+    private var mainContent: some View {
         VStack(spacing: 0) {
             // Hero header with play/pause, timer, task info
             heroHeader
@@ -90,22 +115,18 @@ struct MenuBarContentView: View {
             // Bottom toolbar
             BottomBar(
                 timerManager: timerManager,
-                onAddTask: { name in
-                    addTaskFromTemplate(name)
-                },
                 onAddEmpty: {
                     showAddTaskBanner()
+                },
+                onAddFromTemplate: { template in
+                    addTaskFromTemplate(template)
+                },
+                onShowSettings: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showSettings = true
+                    }
                 }
             )
-        }
-        .frame(width: 420, height: 600)
-        .background(Color(red: 0.11, green: 0.12, blue: 0.14))
-        .onTapGesture {
-            // Resign first responder to dismiss any active text field
-            NSApp.keyWindow?.makeFirstResponder(nil)
-        }
-        .onAppear {
-            timerManager.syncActiveTask(with: allTasks)
         }
         // Inline delete confirmation overlay (system alerts close the menu bar panel)
         .overlay(alignment: .bottom) {
@@ -138,15 +159,9 @@ struct MenuBarContentView: View {
         return ZStack {
             // Gradient background — red/pink when active, grey when idle
             LinearGradient(
-                colors: isRunning ? [
-                    Color(red: 0.75, green: 0.18, blue: 0.28).opacity(0.5),
-                    Color(red: 0.45, green: 0.10, blue: 0.18).opacity(0.7),
-                    Color(red: 0.20, green: 0.08, blue: 0.12)
-                ] : [
-                    Color(red: 0.22, green: 0.23, blue: 0.25).opacity(0.5),
-                    Color(red: 0.16, green: 0.17, blue: 0.19).opacity(0.7),
-                    Color(red: 0.12, green: 0.13, blue: 0.15)
-                ],
+                colors: isRunning
+                    ? Theme.heroActiveGradient(colorScheme)
+                    : Theme.heroIdleGradient(colorScheme),
                 startPoint: .topLeading,
                 endPoint: .bottomTrailing
             )
@@ -164,13 +179,13 @@ struct MenuBarContentView: View {
                         Circle()
                             .fill(isRunning
                                   ? Color(red: 0.90, green: 0.25, blue: 0.35)
-                                  : Color.white.opacity(0.12))
+                                  : Theme.heroButtonIdle(colorScheme))
                             .frame(width: 64, height: 64)
                             .shadow(color: isRunning ? Color(red: 0.90, green: 0.25, blue: 0.35).opacity(0.5) : .clear, radius: 12)
 
                         Image(systemName: isRunning ? "pause.fill" : "play.fill")
                             .font(.system(size: 24, weight: .bold))
-                            .foregroundStyle(.white)
+                            .foregroundStyle(Theme.heroText(colorScheme, isRunning: isRunning))
                     }
                 }
                 .buttonStyle(.plain)
@@ -181,7 +196,7 @@ struct MenuBarContentView: View {
                     // Selected/active task timer
                     Text(heroFormattedTime)
                         .font(.system(size: 42, weight: .thin))
-                        .foregroundStyle(.white)
+                        .foregroundStyle(Theme.heroText(colorScheme, isRunning: isRunning))
                         .contentTransition(.numericText())
 
                     // Active task info
@@ -190,22 +205,22 @@ struct MenuBarContentView: View {
                             if let code = task.projectCode {
                                 Text(code.uppercased())
                                     .font(.system(size: 10, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.5))
+                                    .foregroundStyle(Theme.heroMutedText(colorScheme, isRunning: isRunning))
                                     .tracking(1)
                                     .padding(.horizontal, 6)
                                     .padding(.vertical, 2)
-                                    .background(Color.white.opacity(0.1))
+                                    .background(Theme.heroButtonIdle(colorScheme))
                                     .clipShape(RoundedRectangle(cornerRadius: 3))
                             }
                             Text(task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name)
                                 .font(.system(size: 14, weight: .medium))
-                                .foregroundStyle(.white.opacity(0.8))
+                                .foregroundStyle(Theme.heroSubtext(colorScheme, isRunning: isRunning))
                                 .lineLimit(1)
                         }
                     } else {
                         Text(String(localized: "Ingen aktiv session"))
                             .font(.system(size: 13, weight: .medium))
-                            .foregroundStyle(.white.opacity(0.3))
+                            .foregroundStyle(Theme.heroMutedText(colorScheme, isRunning: isRunning))
                     }
                 }
 
@@ -234,15 +249,15 @@ struct MenuBarContentView: View {
                 .frame(width: 44, alignment: .trailing)
         }
         .font(.system(size: 10, weight: .bold))
-        .foregroundStyle(.white.opacity(0.3))
+        .foregroundStyle(Theme.textTertiary(colorScheme))
         .textCase(.uppercase)
         .tracking(0.5)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
-        .background(Color.white.opacity(0.02))
+        .background(Theme.surfaceTint(colorScheme))
         .overlay(alignment: .bottom) {
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(Theme.separator(colorScheme))
                 .frame(height: 1)
         }
     }
@@ -289,7 +304,7 @@ struct MenuBarContentView: View {
         return HStack(spacing: 0) {
             Text(String(localized: "I alt"))
                 .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(.white.opacity(0.4))
+                .foregroundStyle(Theme.textTertiary(colorScheme))
                 .textCase(.uppercase)
                 .padding(.leading, 16)
 
@@ -297,20 +312,20 @@ struct MenuBarContentView: View {
 
             Text(timeStr)
                 .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.7))
+                .foregroundStyle(Theme.textSecondary(colorScheme))
                 .frame(width: 68, alignment: .trailing)
 
             Text(String(format: "%.2f", totalDecimalHours))
                 .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .foregroundStyle(Color(red: 0.90, green: 0.35, blue: 0.45))
+                .foregroundStyle(Theme.accent)
                 .frame(width: 44, alignment: .trailing)
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
-        .background(Color.white.opacity(0.02))
+        .background(Theme.surfaceTint(colorScheme))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(Theme.separator(colorScheme))
                 .frame(height: 1)
         }
     }
@@ -323,21 +338,21 @@ struct MenuBarContentView: View {
 
             ZStack {
                 Circle()
-                    .fill(Color.white.opacity(0.05))
+                    .fill(Theme.emptyStateCircle(colorScheme))
                     .frame(width: 64, height: 64)
 
                 Image(systemName: "clock")
                     .font(.system(size: 26, weight: .light))
-                    .foregroundStyle(.white.opacity(0.25))
+                    .foregroundStyle(Theme.emptyStateIcon(colorScheme))
             }
 
             VStack(spacing: 5) {
                 Text(String(localized: "Ingen opgaver"))
                     .font(.system(size: 16, weight: .semibold))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
                 Text(String(localized: "Tilf\u{00f8}j en opgave for at komme i gang"))
                     .font(.system(size: 13))
-                    .foregroundStyle(.white.opacity(0.3))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
             }
 
             Button(action: showAddTaskBanner) {
@@ -350,7 +365,7 @@ struct MenuBarContentView: View {
                 .foregroundStyle(.white)
                 .padding(.horizontal, 18)
                 .padding(.vertical, 9)
-                .background(Color(red: 0.85, green: 0.25, blue: 0.35))
+                .background(Theme.accentButton)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
             .buttonStyle(.plain)
@@ -373,13 +388,14 @@ struct MenuBarContentView: View {
         }
     }
 
-    private func addTaskFromTemplate(_ name: String) {
+    private func addTaskFromTemplate(_ template: TaskTemplate) {
         withAnimation(.easeInOut(duration: 0.2)) {
             let newTask = Task(
-                name: name,
+                name: template.name,
                 date: timerManager.selectedDate,
                 sortOrder: tasksForSelectedDate.count
             )
+            newTask.projectCode = template.projectCode
             modelContext.insert(newTask)
         }
     }
@@ -411,17 +427,15 @@ struct MenuBarContentView: View {
     // MARK: - Add Task Banner
 
     private var addTaskBanner: some View {
-        let greenColor = Color(red: 0.20, green: 0.72, blue: 0.45)
-
-        return HStack(spacing: 12) {
+        HStack(spacing: 12) {
             Image(systemName: "plus.circle.fill")
                 .font(.system(size: 18))
-                .foregroundStyle(greenColor)
+                .foregroundStyle(Theme.green)
 
             TextField(String(localized: "Opgavenavn"), text: $newTaskName)
                 .textFieldStyle(.plain)
                 .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(.white)
+                .foregroundStyle(Theme.textPrimary(colorScheme))
                 .focused($isAddFieldFocused)
                 .onSubmit { commitAddTask() }
                 .onChange(of: isAddFieldFocused) { _, focused in
@@ -433,31 +447,31 @@ struct MenuBarContentView: View {
             Button(action: { cancelAdd() }) {
                 Text(String(localized: "Annuller"))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.bannerSecondaryText(colorScheme))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.1))
+                    .background(Theme.bannerSecondaryButton(colorScheme))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
 
             Button(action: { commitAddTask() }) {
-                Text(String(localized: "Tilføj"))
+                Text(String(localized: "Tilf\u{00f8}j"))
                     .font(.system(size: 12, weight: .bold))
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(greenColor)
+                    .background(Theme.green)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(red: 0.12, green: 0.17, blue: 0.14))
+        .background(Theme.addBannerBackground(colorScheme))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(greenColor.opacity(0.5))
+                .fill(Theme.green.opacity(0.5))
                 .frame(height: 1)
         }
     }
@@ -497,74 +511,97 @@ struct MenuBarContentView: View {
     // MARK: - Project Code Banner
 
     private var projectCodeBanner: some View {
-        let blueColor = Color(red: 0.30, green: 0.55, blue: 0.90)
         let taskName = codeEditTask.map { $0.name.isEmpty ? String(localized: "Unavngivet opgave") : $0.name } ?? ""
 
-        return HStack(spacing: 12) {
-            Image(systemName: "tag.fill")
-                .font(.system(size: 14))
-                .foregroundStyle(blueColor)
-
-            VStack(alignment: .leading, spacing: 2) {
-                Text(taskName)
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.4))
-                    .lineLimit(1)
-
-                TextField(String(localized: "Projektkode"), text: $editedCode)
-                    .textFieldStyle(.plain)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
-                    .focused($isCodeFieldFocused)
-                    .onSubmit { commitCodeEdit() }
-                    .onChange(of: isCodeFieldFocused) { _, focused in
-                        if !focused { commitCodeEdit() }
+        return VStack(spacing: 8) {
+            // Project code quick-pick
+            if !projectCodes.isEmpty {
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: 4) {
+                        ForEach(projectCodes) { code in
+                            Button(action: {
+                                editedCode = editedCode == code.code ? "" : code.code
+                            }) {
+                                Text(code.displayName)
+                                    .font(.system(size: 10, weight: .semibold))
+                                    .foregroundStyle(editedCode == code.code ? .white : Theme.blue)
+                                    .padding(.horizontal, 7)
+                                    .padding(.vertical, 3)
+                                    .background(editedCode == code.code ? Theme.blue : Theme.blue.opacity(0.12))
+                                    .clipShape(RoundedRectangle(cornerRadius: 4))
+                            }
+                            .buttonStyle(.plain)
+                        }
                     }
+                }
             }
 
-            Spacer()
+            HStack(spacing: 12) {
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 14))
+                    .foregroundStyle(Theme.blue)
 
-            if codeEditTask?.projectCode != nil {
-                Button(action: { clearCode() }) {
-                    Text(String(localized: "Fjern"))
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(taskName)
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.textTertiary(colorScheme))
+                        .lineLimit(1)
+
+                    TextField(String(localized: "Projektkode"), text: $editedCode)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(Theme.textPrimary(colorScheme))
+                        .focused($isCodeFieldFocused)
+                        .onSubmit { commitCodeEdit() }
+                        .onChange(of: isCodeFieldFocused) { _, focused in
+                            if !focused { commitCodeEdit() }
+                        }
+                }
+
+                Spacer()
+
+                if codeEditTask?.projectCode != nil {
+                    Button(action: { clearCode() }) {
+                        Text(String(localized: "Fjern"))
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Theme.bannerSecondaryText(colorScheme))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(Theme.bannerSecondaryButton(colorScheme))
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
+                    }
+                    .buttonStyle(.plain)
+                }
+
+                Button(action: { cancelCodeEdit() }) {
+                    Text(String(localized: "Annuller"))
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.7))
+                        .foregroundStyle(Theme.bannerSecondaryText(colorScheme))
                         .padding(.horizontal, 10)
                         .padding(.vertical, 6)
-                        .background(Color.white.opacity(0.1))
+                        .background(Theme.bannerSecondaryButton(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+
+                Button(action: { commitCodeEdit() }) {
+                    Text(String(localized: "Gem"))
+                        .font(.system(size: 12, weight: .bold))
+                        .foregroundStyle(.white)
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 6)
+                        .background(Theme.blue)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
             }
-
-            Button(action: { cancelCodeEdit() }) {
-                Text(String(localized: "Annuller"))
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.1))
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
-
-            Button(action: { commitCodeEdit() }) {
-                Text(String(localized: "Gem"))
-                    .font(.system(size: 12, weight: .bold))
-                    .foregroundStyle(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(blueColor)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }
-            .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(red: 0.12, green: 0.14, blue: 0.18))
+        .background(Theme.codeBannerBackground(colorScheme))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(blueColor.opacity(0.5))
+                .fill(Theme.blue.opacity(0.5))
                 .frame(height: 1)
         }
     }
@@ -612,12 +649,12 @@ struct MenuBarContentView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text(String(localized: "Slet \"\(name)\"?"))
                     .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(.white)
+                    .foregroundStyle(Theme.textPrimary(colorScheme))
                     .lineLimit(1)
 
                 Text(String(localized: "Denne opgave har registreret tid."))
                     .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.5))
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
             }
 
             Spacer()
@@ -629,10 +666,10 @@ struct MenuBarContentView: View {
             }) {
                 Text(String(localized: "Annuller"))
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.7))
+                    .foregroundStyle(Theme.bannerSecondaryText(colorScheme))
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color.white.opacity(0.1))
+                    .background(Theme.bannerSecondaryButton(colorScheme))
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
@@ -645,17 +682,17 @@ struct MenuBarContentView: View {
                     .foregroundStyle(.white)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
-                    .background(Color(red: 0.85, green: 0.20, blue: 0.25))
+                    .background(Theme.destructive)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(Color(red: 0.18, green: 0.14, blue: 0.15))
+        .background(Theme.deleteBannerBackground(colorScheme))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color(red: 0.85, green: 0.20, blue: 0.25).opacity(0.5))
+                .fill(Theme.destructive.opacity(0.5))
                 .frame(height: 1)
         }
     }
@@ -664,11 +701,11 @@ struct MenuBarContentView: View {
 // MARK: - Day Strip (replaces WeekStripView usage)
 
 private struct DayStripView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Bindable var timerManager: TimerManager
 
     private let calendar = Calendar.current
     private let dayLabels = ["Ma", "Ti", "On", "To", "Fr", "L\u{00f8}", "S\u{00f8}"]
-    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
 
     var body: some View {
         VStack(spacing: 0) {
@@ -677,7 +714,7 @@ private struct DayStripView: View {
                 Button(action: { timerManager.goToPreviousWeek() }) {
                     Image(systemName: "chevron.left")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(Theme.textTertiary(colorScheme))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
@@ -700,66 +737,65 @@ private struct DayStripView: View {
                 Button(action: { timerManager.goToNextWeek() }) {
                     Image(systemName: "chevron.right")
                         .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(.white.opacity(0.35))
+                        .foregroundStyle(Theme.textTertiary(colorScheme))
                         .frame(width: 28, height: 28)
                 }
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 8)
             .padding(.vertical, 8)
-            .background(Color.white.opacity(0.02))
+            .background(Theme.surfaceTint(colorScheme))
 
             // "Go to today" banner
             if !timerManager.isToday {
                 HStack(spacing: 8) {
                     Image(systemName: "calendar")
                         .font(.system(size: 11))
-                        .foregroundStyle(accentColor)
+                        .foregroundStyle(Theme.accent)
 
-                    Text(String(localized: "Du kigger på en anden dag"))
+                    Text(String(localized: "Du kigger p\u{00e5} en anden dag"))
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.white.opacity(0.5))
+                        .foregroundStyle(Theme.textSecondary(colorScheme))
 
                     Spacer()
 
                     Button(action: { timerManager.goToToday() }) {
-                        Text(String(localized: "Gå til i dag"))
+                        Text(String(localized: "G\u{00e5} til i dag"))
                             .font(.system(size: 11, weight: .bold))
                             .foregroundStyle(.white)
                             .padding(.horizontal, 10)
                             .padding(.vertical, 4)
-                            .background(accentColor)
+                            .background(Theme.accent)
                             .clipShape(RoundedRectangle(cornerRadius: 5))
                     }
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 6)
-                .background(Color(red: 0.16, green: 0.12, blue: 0.13))
+                .background(Theme.todayBannerBackground(colorScheme))
             }
 
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(Theme.separator(colorScheme))
                 .frame(height: 1)
         }
     }
 }
 
 private struct DayCell: View {
+    @Environment(\.colorScheme) private var colorScheme
     let label: String
     let number: Int
     let isSelected: Bool
     let isToday: Bool
     let onTap: () -> Void
 
-    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
-
     var body: some View {
         Button(action: onTap) {
             VStack(spacing: 2) {
                 Text(label)
                     .font(.system(size: 9, weight: .medium))
-                    .foregroundStyle(isSelected ? accentColor : .white.opacity(0.3))
+                    .foregroundStyle(isSelected ? Theme.accent : Theme.textTertiary(colorScheme))
 
                 Text("\(number)")
                     .font(.system(size: 11, weight: isToday ? .bold : .medium))
@@ -774,12 +810,12 @@ private struct DayCell: View {
 
     private var foregroundColor: Color {
         if isSelected { return .white }
-        if isToday { return accentColor }
-        return .white.opacity(0.6)
+        if isToday { return Theme.accent }
+        return Theme.textSecondary(colorScheme)
     }
 
     private var backgroundColor: Color {
-        if isSelected { return accentColor }
+        if isSelected { return Theme.accent }
         return .clear
     }
 }
@@ -787,14 +823,14 @@ private struct DayCell: View {
 // MARK: - Bottom Bar
 
 private struct BottomBar: View {
+    @Environment(\.colorScheme) private var colorScheme
+    @Query(sort: \TaskTemplate.sortOrder) private var templates: [TaskTemplate]
     @Bindable var timerManager: TimerManager
-    var onAddTask: (String) -> Void
     var onAddEmpty: () -> Void
+    var onAddFromTemplate: (TaskTemplate) -> Void
+    var onShowSettings: () -> Void
 
     @State private var showTemplates = false
-    @State private var showProjectCodes = false
-
-    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
 
     var body: some View {
         HStack(spacing: 0) {
@@ -802,10 +838,68 @@ private struct BottomBar: View {
             Button(action: onAddEmpty) {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
                     .frame(width: 36, height: 36)
             }
             .buttonStyle(.plain)
+
+            // Quick-add from template
+            if !templates.isEmpty {
+                Button(action: { showTemplates.toggle() }) {
+                    Image(systemName: "doc.text")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(Theme.textSecondary(colorScheme))
+                        .frame(width: 36, height: 36)
+                }
+                .buttonStyle(.plain)
+                .popover(isPresented: $showTemplates, arrowEdge: .top) {
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(String(localized: "Hurtig tilf\u{00f8}j"))
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundStyle(.tertiary)
+                            .textCase(.uppercase)
+                            .tracking(0.8)
+                            .padding(.horizontal, 8)
+                            .padding(.top, 4)
+
+                        ForEach(templates) { template in
+                            Button(action: {
+                                onAddFromTemplate(template)
+                                showTemplates = false
+                            }) {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "doc.text")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(Theme.accent.opacity(0.7))
+
+                                    Text(template.name)
+                                        .font(.system(size: 12))
+                                        .foregroundStyle(.primary)
+                                        .lineLimit(1)
+
+                                    Spacer()
+
+                                    if let code = template.projectCode {
+                                        Text(code)
+                                            .font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(Theme.accent)
+                                            .padding(.horizontal, 5)
+                                            .padding(.vertical, 1)
+                                            .background(Theme.accent.opacity(0.12))
+                                            .clipShape(RoundedRectangle(cornerRadius: 3))
+                                    }
+                                }
+                                .padding(.horizontal, 8)
+                                .padding(.vertical, 6)
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                    }
+                    .padding(6)
+                    .frame(width: 220)
+                }
+            }
 
             Spacer()
 
@@ -819,60 +913,32 @@ private struct BottomBar: View {
                     Text(timerManager.showBillableTime ? String(localized: "Fakturerbar") : String(localized: "Faktisk"))
                         .font(.system(size: 11, weight: .semibold))
                 }
-                .foregroundStyle(timerManager.showBillableTime ? accentColor : .white.opacity(0.45))
+                .foregroundStyle(timerManager.showBillableTime ? Theme.accent : Theme.textSecondary(colorScheme))
                 .padding(.horizontal, 12)
                 .padding(.vertical, 7)
-                .background(timerManager.showBillableTime ? accentColor.opacity(0.12) : Color.white.opacity(0.04))
+                .background(timerManager.showBillableTime ? Theme.accent.opacity(0.12) : Theme.surfaceTint(colorScheme))
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             }
             .buttonStyle(.plain)
 
             Spacer()
 
-            // Settings gear
-            Menu {
-                Button(action: { showTemplates = true }) {
-                    Label(String(localized: "Skabeloner"), systemImage: "doc.text")
-                }
-
-                Button(action: { showProjectCodes = true }) {
-                    Label(String(localized: "Projektkoder"), systemImage: "tag")
-                }
-
-                Divider()
-
-                Button(action: {
-                    NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
-                }) {
-                    Label(String(localized: "Indstillinger"), systemImage: "gearshape")
-                }
-            } label: {
+            // Settings button
+            Button(action: onShowSettings) {
                 Image(systemName: "gearshape")
                     .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(.white.opacity(0.6))
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
                     .frame(width: 36, height: 36)
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 6)
         .padding(.vertical, 4)
-        .background(Color(red: 0.09, green: 0.10, blue: 0.12))
+        .background(Theme.barBackground(colorScheme))
         .overlay(alignment: .top) {
             Rectangle()
-                .fill(Color.white.opacity(0.06))
+                .fill(Theme.separator(colorScheme))
                 .frame(height: 1)
-        }
-        .popover(isPresented: $showTemplates, arrowEdge: .top) {
-            TemplateListView(onAddTask: { name in
-                onAddTask(name)
-                showTemplates = false
-            })
-            .frame(width: 240, height: 300)
-        }
-        .popover(isPresented: $showProjectCodes, arrowEdge: .top) {
-            ProjectCodeListView()
-                .frame(width: 260, height: 300)
         }
     }
 }

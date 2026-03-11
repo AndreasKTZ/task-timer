@@ -9,10 +9,9 @@ import SwiftUI
 import SwiftData
 
 struct ProjectCodePicker: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Binding var selectedCode: String?
     @Query(sort: \ProjectCode.sortOrder) private var projectCodes: [ProjectCode]
-
-    private let accentColor = Color(red: 0.90, green: 0.35, blue: 0.45)
 
     var body: some View {
         Menu {
@@ -49,15 +48,15 @@ struct ProjectCodePicker: View {
             if let code = selectedCode {
                 Text(code)
                     .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(accentColor)
+                    .foregroundStyle(Theme.accent)
                     .padding(.horizontal, 6)
                     .padding(.vertical, 2)
-                    .background(accentColor.opacity(0.12))
+                    .background(Theme.accent.opacity(0.12))
                     .clipShape(RoundedRectangle(cornerRadius: 3))
             } else {
                 Image(systemName: "tag")
                     .font(.system(size: 11))
-                    .foregroundStyle(.white.opacity(0.2))
+                    .foregroundStyle(Theme.textQuaternary(colorScheme))
             }
         }
         .menuStyle(.borderlessButton)

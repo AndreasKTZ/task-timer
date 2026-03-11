@@ -9,16 +9,21 @@ import SwiftUI
 import SwiftData
 
 struct ProjectCodeListView: View {
+    @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \ProjectCode.sortOrder) private var projectCodes: [ProjectCode]
     @Environment(\.modelContext) private var modelContext
 
-    @State private var isAddingCode = false
-    @State private var newCode = ""
-    @State private var newName = ""
-    @FocusState private var isCodeFieldFocused: Bool
+    @State private var showBanner = false
+    @State private var editingCode: ProjectCode?
+    @State private var bannerCode = ""
+    @State private var bannerName = ""
+    @FocusState private var isCodeFocused: Bool
+    @FocusState private var isNameFocused: Bool
+
+    private var isEditing: Bool { editingCode != nil }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(spacing: 0) {
             // Header
             HStack {
                 Text(String(localized: "Projektkoder"))
@@ -29,12 +34,7 @@ struct ProjectCodeListView: View {
 
                 Spacer()
 
-                Button(action: {
-                    isAddingCode = true
-                    newCode = ""
-                    newName = ""
-                    isCodeFieldFocused = true
-                }) {
+                Button(action: showAdd) {
                     Image(systemName: "plus")
                         .font(.system(size: 11, weight: .semibold))
                         .foregroundStyle(.tertiary)
@@ -44,99 +44,152 @@ struct ProjectCodeListView: View {
                 }
                 .buttonStyle(.plain)
             }
-            .padding(.horizontal, 8)
-
-            // New code input
-            if isAddingCode {
-                VStack(spacing: 4) {
-                    HStack(spacing: 4) {
-                        TextField(String(localized: "Kode"), text: $newCode)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 12))
-                            .focused($isCodeFieldFocused)
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(Color(nsColor: .textBackgroundColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                            .frame(width: 60)
-
-                        TextField(String(localized: "Navn (valgfrit)"), text: $newName)
-                            .textFieldStyle(.plain)
-                            .font(.system(size: 12))
-                            .onSubmit {
-                                addProjectCode()
-                            }
-                            .padding(.horizontal, 6)
-                            .padding(.vertical, 4)
-                            .background(Color(nsColor: .textBackgroundColor))
-                            .clipShape(RoundedRectangle(cornerRadius: 4))
-                    }
-
-                    HStack {
-                        Spacer()
-
-                        Button(action: addProjectCode) {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.green)
-                        }
-                        .buttonStyle(.plain)
-                        .disabled(newCode.trimmingCharacters(in: .whitespaces).isEmpty)
-
-                        Button(action: {
-                            isAddingCode = false
-                            newCode = ""
-                            newName = ""
-                        }) {
-                            Image(systemName: "xmark")
-                                .font(.system(size: 11, weight: .semibold))
-                                .foregroundStyle(.red)
-                        }
-                        .buttonStyle(.plain)
-                    }
-                }
-                .padding(.horizontal, 8)
-            }
+            .padding(.horizontal, 14)
+            .padding(.top, 14)
+            .padding(.bottom, 10)
 
             // Project code list
-            if projectCodes.isEmpty && !isAddingCode {
+            if projectCodes.isEmpty && !showBanner {
                 Text(String(localized: "Ingen projektkoder"))
                     .font(.system(size: 12))
                     .foregroundStyle(.tertiary)
-                    .padding(.horizontal, 8)
+                    .padding(.horizontal, 14)
+                Spacer()
             } else {
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         ForEach(projectCodes) { code in
                             ProjectCodeRow(
                                 projectCode: code,
+                                onEdit: { showEdit(code) },
                                 onDelete: {
-                                    deleteProjectCode(code)
+                                    modelContext.delete(code)
                                 }
                             )
                         }
                     }
+                    .padding(.horizontal, 6)
                 }
             }
+
+            // Add/Edit banner at bottom
+            if showBanner {
+                banner
+            }
         }
-        .padding(14)
         .frame(maxHeight: .infinity, alignment: .top)
     }
 
-    private func addProjectCode() {
-        let code = newCode.trimmingCharacters(in: .whitespaces)
-        guard !code.isEmpty else { return }
+    private var banner: some View {
+        HStack(spacing: 8) {
+            Image(systemName: "tag.fill")
+                .font(.system(size: 14))
+                .foregroundStyle(Theme.blue)
 
-        let name = newName.trimmingCharacters(in: .whitespaces)
-        let projectCode = ProjectCode(code: code, name: name, sortOrder: projectCodes.count)
-        modelContext.insert(projectCode)
+            TextField(String(localized: "Kode"), text: $bannerCode)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(Theme.textPrimary(colorScheme))
+                .focused($isCodeFocused)
+                .onSubmit { isNameFocused = true }
+                .frame(width: 60)
 
-        isAddingCode = false
-        newCode = ""
-        newName = ""
+            TextField(String(localized: "Navn (valgfrit)"), text: $bannerName)
+                .textFieldStyle(.plain)
+                .font(.system(size: 13))
+                .foregroundStyle(Theme.textPrimary(colorScheme))
+                .focused($isNameFocused)
+                .onSubmit { commitBanner() }
+
+            Spacer()
+
+            Button(action: cancelBanner) {
+                Text(String(localized: "Annuller"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.bannerSecondaryText(colorScheme))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.bannerSecondaryButton(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: commitBanner) {
+                Text(String(localized: isEditing ? "Gem" : "Tilf\u{00f8}j"))
+                    .font(.system(size: 12, weight: .bold))
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 6)
+                    .background(Theme.blue)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Theme.surfaceTint(colorScheme))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Theme.separator(colorScheme))
+                .frame(height: 1)
+        }
     }
 
-    private func deleteProjectCode(_ code: ProjectCode) {
-        modelContext.delete(code)
+    private func showAdd() {
+        editingCode = nil
+        bannerCode = ""
+        bannerName = ""
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showBanner = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isCodeFocused = true
+        }
+    }
+
+    private func showEdit(_ code: ProjectCode) {
+        editingCode = code
+        bannerCode = code.code
+        bannerName = code.name
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showBanner = true
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            isCodeFocused = true
+        }
+    }
+
+    private func commitBanner() {
+        let code = bannerCode.trimmingCharacters(in: .whitespaces)
+        guard !code.isEmpty else {
+            cancelBanner()
+            return
+        }
+
+        let name = bannerName.trimmingCharacters(in: .whitespaces)
+
+        if let existing = editingCode {
+            existing.code = code
+            existing.name = name
+        } else {
+            let projectCode = ProjectCode(code: code, name: name, sortOrder: projectCodes.count)
+            modelContext.insert(projectCode)
+        }
+
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showBanner = false
+            editingCode = nil
+            bannerCode = ""
+            bannerName = ""
+        }
+    }
+
+    private func cancelBanner() {
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showBanner = false
+            editingCode = nil
+            bannerCode = ""
+            bannerName = ""
+        }
     }
 }
