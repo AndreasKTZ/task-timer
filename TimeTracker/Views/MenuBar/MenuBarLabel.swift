@@ -36,6 +36,7 @@ struct MenuBarLabel: View {
 
             HStack(spacing: 4) {
                 Image(systemName: "hourglass")
+                    .font(.system(size: 16))
                 Text("\(timeStr) · \(name)")
                     .font(.system(.body, design: .monospaced))
             }
@@ -46,6 +47,7 @@ struct MenuBarLabel: View {
 
             HStack(spacing: 4) {
                 Image(systemName: "hourglass.bottomhalf.filled")
+                    .font(.system(size: 16))
                 if totalHours > 0 {
                     Text(String(format: "%.2ft", totalHours))
                         .font(.system(.body, design: .monospaced))

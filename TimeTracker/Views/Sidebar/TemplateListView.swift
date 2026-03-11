@@ -44,6 +44,8 @@ struct TemplateListView: View {
                         .clipShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
+                .frame(width: 28, height: 28)
+                .contentShape(Rectangle())
             }
             .padding(.horizontal, 14)
             .padding(.top, 14)

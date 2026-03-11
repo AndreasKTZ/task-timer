@@ -40,6 +40,7 @@ struct InlineSettingsView: View {
                         .font(.system(size: 11, weight: .bold))
                         .foregroundStyle(Theme.accent)
                         .frame(width: 28, height: 28)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
 

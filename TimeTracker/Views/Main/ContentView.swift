@@ -13,6 +13,7 @@ struct MenuBarContentView: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query private var allTasks: [Task]
     @Query(sort: \ProjectCode.sortOrder) private var projectCodes: [ProjectCode]
+    @Query(sort: \TaskTemplate.sortOrder) private var templates: [TaskTemplate]
     @Bindable var timerManager: TimerManager
     @State private var taskToDelete: Task?
     @State private var selectedTaskID: UUID?
@@ -23,6 +24,7 @@ struct MenuBarContentView: View {
     @State private var editedCode = ""
     @FocusState private var isCodeFieldFocused: Bool
     @State private var showSettings = false
+    @State private var showTemplateBanner = false
 
     private var tasksForSelectedDate: [Task] {
         allTasks.filter { task in
@@ -121,8 +123,10 @@ struct MenuBarContentView: View {
                 onAddEmpty: {
                     showAddTaskBanner()
                 },
-                onAddFromTemplate: { template in
-                    addTaskFromTemplate(template)
+                onShowTemplates: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showTemplateBanner.toggle()
+                    }
                 },
                 onShowSettings: {
                     withAnimation(.easeInOut(duration: 0.15)) {
@@ -149,6 +153,13 @@ struct MenuBarContentView: View {
         .overlay(alignment: .bottom) {
             if codeEditTask != nil {
                 projectCodeBanner
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
+        // Inline template quick-add banner
+        .overlay(alignment: .bottom) {
+            if showTemplateBanner {
+                templateBanner
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
@@ -665,6 +676,93 @@ struct MenuBarContentView: View {
         }
     }
 
+    // MARK: - Template Quick-Add Banner
+
+    private var templateBanner: some View {
+        VStack(spacing: 0) {
+            HStack {
+                Text(String(localized: "Hurtig tilf\u{00f8}j"))
+                    .font(.system(size: 10, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
+                    .textCase(.uppercase)
+                    .tracking(0.8)
+
+                Spacer()
+
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showTemplateBanner = false
+                    }
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(Theme.textTertiary(colorScheme))
+                        .frame(width: 22, height: 22)
+                        .contentShape(Rectangle())
+                        .background(Theme.bannerSecondaryButton(colorScheme))
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, 14)
+            .padding(.top, 10)
+            .padding(.bottom, 6)
+
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    ForEach(templates) { template in
+                        Button(action: {
+                            addTaskFromTemplate(template)
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                showTemplateBanner = false
+                            }
+                        }) {
+                            HStack(spacing: 8) {
+                                Image(systemName: "doc.text")
+                                    .font(.system(size: 11))
+                                    .foregroundStyle(Theme.accent.opacity(0.7))
+
+                                Text(template.name)
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Theme.textPrimary(colorScheme))
+                                    .lineLimit(1)
+
+                                Spacer()
+
+                                if let code = template.projectCode {
+                                    Text(code)
+                                        .font(.system(size: 10, weight: .semibold))
+                                        .foregroundStyle(Theme.accent)
+                                        .padding(.horizontal, 5)
+                                        .padding(.vertical, 1)
+                                        .background(Theme.accent.opacity(0.12))
+                                        .clipShape(RoundedRectangle(cornerRadius: 3))
+                                }
+
+                                Image(systemName: "plus.circle")
+                                    .font(.system(size: 12))
+                                    .foregroundStyle(Theme.accent.opacity(0.5))
+                            }
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 8)
+                            .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
+                    }
+                }
+                .padding(.horizontal, 6)
+            }
+            .frame(maxHeight: 200)
+        }
+        .background(Theme.surfaceTint(colorScheme))
+        .background(Theme.panelBackground(colorScheme))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Theme.separator(colorScheme))
+                .frame(height: 1)
+        }
+    }
+
     private func deleteConfirmationBanner(for task: Task) -> some View {
         let name = task.name.isEmpty ? String(localized: "Unavngivet opgave") : task.name
 
@@ -737,6 +835,7 @@ private struct DayStripView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.textTertiary(colorScheme))
                     .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
@@ -758,6 +857,7 @@ private struct DayStripView: View {
                     .font(.system(size: 10, weight: .semibold))
                     .foregroundStyle(Theme.textTertiary(colorScheme))
                     .frame(width: 28, height: 28)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
@@ -837,6 +937,7 @@ private struct DayCell: View {
                     .background(backgroundColor)
                     .clipShape(Circle())
             }
+            .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
         .scaleEffect(isSelected ? 1.0 : 0.95)
@@ -862,10 +963,8 @@ private struct BottomBar: View {
     @Query(sort: \TaskTemplate.sortOrder) private var templates: [TaskTemplate]
     @Bindable var timerManager: TimerManager
     var onAddEmpty: () -> Void
-    var onAddFromTemplate: (TaskTemplate) -> Void
+    var onShowTemplates: () -> Void
     var onShowSettings: () -> Void
-
-    @State private var showTemplates = false
 
     var body: some View {
         HStack(spacing: 0) {
@@ -875,65 +974,20 @@ private struct BottomBar: View {
                     .font(.system(size: 13, weight: .bold))
                     .foregroundStyle(Theme.textSecondary(colorScheme))
                     .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
 
             // Quick-add from template
             if !templates.isEmpty {
-                Button(action: { showTemplates.toggle() }) {
+                Button(action: onShowTemplates) {
                     Image(systemName: "doc.text")
                         .font(.system(size: 11, weight: .medium))
                         .foregroundStyle(Theme.textSecondary(colorScheme))
                         .frame(width: 36, height: 36)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .popover(isPresented: $showTemplates, arrowEdge: .top) {
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text(String(localized: "Hurtig tilf\u{00f8}j"))
-                            .font(.system(size: 10, weight: .bold))
-                            .foregroundStyle(.tertiary)
-                            .textCase(.uppercase)
-                            .tracking(0.8)
-                            .padding(.horizontal, 8)
-                            .padding(.top, 4)
-
-                        ForEach(templates) { template in
-                            Button(action: {
-                                onAddFromTemplate(template)
-                                showTemplates = false
-                            }) {
-                                HStack(spacing: 8) {
-                                    Image(systemName: "doc.text")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(Theme.accent.opacity(0.7))
-
-                                    Text(template.name)
-                                        .font(.system(size: 12))
-                                        .foregroundStyle(.primary)
-                                        .lineLimit(1)
-
-                                    Spacer()
-
-                                    if let code = template.projectCode {
-                                        Text(code)
-                                            .font(.system(size: 10, weight: .semibold))
-                                            .foregroundStyle(Theme.accent)
-                                            .padding(.horizontal, 5)
-                                            .padding(.vertical, 1)
-                                            .background(Theme.accent.opacity(0.12))
-                                            .clipShape(RoundedRectangle(cornerRadius: 3))
-                                    }
-                                }
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 6)
-                                .contentShape(Rectangle())
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                    .padding(6)
-                    .frame(width: 220)
-                }
             }
 
             Spacer()
@@ -965,6 +1019,7 @@ private struct BottomBar: View {
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(Theme.textSecondary(colorScheme))
                     .frame(width: 36, height: 36)
+                    .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
         }
