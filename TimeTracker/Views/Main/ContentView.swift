@@ -14,6 +14,7 @@ struct MenuBarContentView: View {
     @Query private var allTasks: [Task]
     @Query(sort: \ProjectCode.sortOrder) private var projectCodes: [ProjectCode]
     @Query(sort: \TaskTemplate.sortOrder) private var templates: [TaskTemplate]
+    @Query private var closedDays: [ClosedDay]
     @Bindable var timerManager: TimerManager
     @State private var taskToDelete: Task?
     @State private var selectedTaskID: UUID?
@@ -25,6 +26,7 @@ struct MenuBarContentView: View {
     @FocusState private var isCodeFieldFocused: Bool
     @State private var showSettings = false
     @State private var showTemplateBanner = false
+    @State private var showCloseDayConfirm = false
 
     private var tasksForSelectedDate: [Task] {
         allTasks.filter { task in
@@ -57,6 +59,14 @@ struct MenuBarContentView: View {
             return String(format: "%02d:%02d:%02d", h, m, s)
         }
         return "00:00:00"
+    }
+
+    private var isSelectedDayClosed: Bool {
+        closedDays.contains { Calendar.current.isDate($0.date, inSameDayAs: timerManager.selectedDate) }
+    }
+
+    private var closedDayRecord: ClosedDay? {
+        closedDays.first { Calendar.current.isDate($0.date, inSameDayAs: timerManager.selectedDate) }
     }
 
     private var totalDecimalHours: Double {
@@ -120,6 +130,7 @@ struct MenuBarContentView: View {
             // Bottom toolbar
             BottomBar(
                 timerManager: timerManager,
+                isDayClosed: isSelectedDayClosed,
                 onAddEmpty: {
                     showAddTaskBanner()
                 },
@@ -163,6 +174,13 @@ struct MenuBarContentView: View {
                     .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
+        // Inline close-day confirmation banner
+        .overlay(alignment: .bottom) {
+            if showCloseDayConfirm {
+                closeDayBanner
+                    .transition(.move(edge: .bottom).combined(with: .opacity))
+            }
+        }
     }
 
     // MARK: - Hero Header
@@ -183,6 +201,7 @@ struct MenuBarContentView: View {
             HStack(spacing: 16) {
                 // Left: Play/Pause button
                 Button(action: {
+                    guard !isSelectedDayClosed else { return }
                     withAnimation(.easeInOut(duration: 0.35)) {
                         if let task = activeTask {
                             timerManager.stopTask(task, modelContext: modelContext)
@@ -193,19 +212,22 @@ struct MenuBarContentView: View {
                 }) {
                     ZStack {
                         Circle()
-                            .fill(isRunning
-                                  ? Color(red: 0.90, green: 0.25, blue: 0.35)
-                                  : Theme.heroButtonIdle(colorScheme))
+                            .fill(isSelectedDayClosed
+                                  ? Theme.heroButtonIdle(colorScheme)
+                                  : (isRunning
+                                     ? Color(red: 0.90, green: 0.25, blue: 0.35)
+                                     : Theme.heroButtonIdle(colorScheme)))
                             .frame(width: 64, height: 64)
-                            .shadow(color: isRunning ? Color(red: 0.90, green: 0.25, blue: 0.35).opacity(0.5) : .clear, radius: 12)
+                            .shadow(color: isRunning && !isSelectedDayClosed ? Color(red: 0.90, green: 0.25, blue: 0.35).opacity(0.5) : .clear, radius: 12)
 
-                        Image(systemName: isRunning ? "pause.fill" : "play.fill")
+                        Image(systemName: isSelectedDayClosed ? "lock.fill" : (isRunning ? "pause.fill" : "play.fill"))
                             .font(.system(size: 24, weight: .bold))
                             .foregroundStyle(Theme.heroText(colorScheme, isRunning: isRunning))
                             .contentTransition(.symbolEffect(.replace))
                     }
                 }
                 .buttonStyle(.plain)
+                .disabled(isSelectedDayClosed)
                 .padding(.leading, 24)
 
                 // Right: Timer + task info
@@ -300,6 +322,7 @@ struct MenuBarContentView: View {
                         timerManager: timerManager,
                         isActive: task.isRunning,
                         isSelected: selectedTaskID == task.id,
+                        isDayClosed: isSelectedDayClosed,
                         onToggle: {
                             if !task.isRunning {
                                 selectedTaskID = task.id
@@ -336,25 +359,63 @@ struct MenuBarContentView: View {
         let timeStr = String(format: "%02d:%02d:%02d", h, m, s)
 
         return HStack(spacing: 0) {
-            Text(String(localized: "I alt"))
-                .font(.system(size: 11, weight: .bold))
-                .foregroundStyle(Theme.textTertiary(colorScheme))
-                .textCase(.uppercase)
-                .padding(.leading, 16)
+            if isSelectedDayClosed, let closed = closedDayRecord {
+                Image(systemName: "lock.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
 
-            Spacer()
+                Text(String(localized: "Dag lukket"))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
+                    .textCase(.uppercase)
+                    .padding(.leading, 6)
 
-            Text(timeStr)
-                .font(.system(size: 13, weight: .semibold, design: .monospaced))
-                .foregroundStyle(Theme.textSecondary(colorScheme))
-                .frame(width: 68, alignment: .trailing)
-                .contentTransition(.numericText())
+                Spacer()
 
-            Text(String(format: "%.2f", totalDecimalHours))
-                .font(.system(size: 12, weight: .bold, design: .monospaced))
-                .foregroundStyle(Theme.accent)
-                .frame(width: 44, alignment: .trailing)
-                .contentTransition(.numericText())
+                Text(String(localized: "\(String(format: "%.2f", closed.billableHours)) timer sendt til Workbook"))
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
+            } else {
+                Text(String(localized: "I alt"))
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(Theme.textTertiary(colorScheme))
+                    .textCase(.uppercase)
+                    .padding(.leading, 16)
+
+                Spacer()
+
+                Text(timeStr)
+                    .font(.system(size: 13, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
+                    .frame(width: 68, alignment: .trailing)
+                    .contentTransition(.numericText())
+
+                Text(String(format: "%.2f", totalDecimalHours))
+                    .font(.system(size: 12, weight: .bold, design: .monospaced))
+                    .foregroundStyle(Theme.accent)
+                    .frame(width: 44, alignment: .trailing)
+                    .contentTransition(.numericText())
+
+                Button(action: {
+                    withAnimation(.easeInOut(duration: 0.15)) {
+                        showCloseDayConfirm = true
+                    }
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "lock.fill")
+                            .font(.system(size: 9))
+                        Text(String(localized: "Luk dag"))
+                            .font(.system(size: 11, weight: .semibold))
+                    }
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
+                    .padding(.horizontal, 10)
+                    .padding(.vertical, 5)
+                    .background(Theme.textSecondary(colorScheme).opacity(0.12))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .padding(.leading, 8)
+            }
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 10)
@@ -413,6 +474,32 @@ struct MenuBarContentView: View {
     }
 
     // MARK: - Actions
+
+    private func closeSelectedDay() {
+        // Stop any running tasks on this day
+        for task in tasksForSelectedDate where task.isRunning {
+            timerManager.stopTask(task, modelContext: modelContext)
+        }
+
+        // Calculate billable hours
+        let billableHours = tasksForSelectedDate.reduce(0.0) { $0 + $1.roundedDecimalHours }
+
+        // Create closed day record
+        let closedDay = ClosedDay(date: timerManager.selectedDate, billableHours: billableHours)
+        modelContext.insert(closedDay)
+
+        do {
+            try modelContext.save()
+        } catch {
+            print("Failed to save closed day: \(error.localizedDescription)")
+        }
+
+        withAnimation(.easeInOut(duration: 0.15)) {
+            showCloseDayConfirm = false
+        }
+
+        // TODO: Send tasks to Workbook API
+    }
 
     private func addTask() {
         withAnimation(.easeInOut(duration: 0.2)) {
@@ -820,6 +907,77 @@ struct MenuBarContentView: View {
                 .frame(height: 1)
         }
     }
+
+    // MARK: - Close Day Banner
+
+    private var closeDayBanner: some View {
+        let dateFormatter: DateFormatter = {
+            let f = DateFormatter()
+            f.locale = Locale(identifier: "da_DK")
+            f.dateFormat = "EEEE d. MMMM"
+            return f
+        }()
+        let dayName = dateFormatter.string(from: timerManager.selectedDate)
+        let taskCount = tasksForSelectedDate.count
+        let billableHours = tasksForSelectedDate.reduce(0.0) { $0 + $1.roundedDecimalHours }
+        let hours = String(format: "%.2f", billableHours)
+
+        return HStack(spacing: 12) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(String(localized: "Luk \(dayName)?"))
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(Theme.textPrimary(colorScheme))
+                    .lineLimit(1)
+
+                Text(String(localized: "\(taskCount) opgaver \u{2022} \(hours) timer sendes til Workbook"))
+                    .font(.system(size: 11))
+                    .foregroundStyle(Theme.textSecondary(colorScheme))
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button(action: {
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    showCloseDayConfirm = false
+                }
+            }) {
+                Text(String(localized: "Annuller"))
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(Theme.bannerSecondaryText(colorScheme))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(Theme.bannerSecondaryButton(colorScheme))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+
+            Button(action: {
+                closeSelectedDay()
+            }) {
+                HStack(spacing: 4) {
+                    Image(systemName: "lock.fill")
+                        .font(.system(size: 10))
+                    Text(String(localized: "Luk dag"))
+                        .font(.system(size: 12, weight: .bold))
+                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 6)
+                .background(Theme.blue)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+            }
+            .buttonStyle(.plain)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .background(Theme.closeDayBannerBackground(colorScheme))
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(Theme.blue.opacity(0.5))
+                .frame(height: 1)
+        }
+    }
 }
 
 // MARK: - Day Strip (replaces WeekStripView usage)
@@ -965,6 +1123,7 @@ private struct BottomBar: View {
     @Environment(\.colorScheme) private var colorScheme
     @Query(sort: \TaskTemplate.sortOrder) private var templates: [TaskTemplate]
     @Bindable var timerManager: TimerManager
+    var isDayClosed: Bool = false
     var onAddEmpty: () -> Void
     var onShowTemplates: () -> Void
     var onShowSettings: () -> Void
@@ -975,22 +1134,24 @@ private struct BottomBar: View {
             Button(action: onAddEmpty) {
                 Image(systemName: "plus")
                     .font(.system(size: 13, weight: .bold))
-                    .foregroundStyle(Theme.textSecondary(colorScheme))
+                    .foregroundStyle(isDayClosed ? Theme.textQuaternary(colorScheme) : Theme.textSecondary(colorScheme))
                     .frame(width: 36, height: 36)
                     .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            .disabled(isDayClosed)
 
             // Quick-add from template
             if !templates.isEmpty {
                 Button(action: onShowTemplates) {
                     Image(systemName: "doc.text")
                         .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Theme.textSecondary(colorScheme))
+                        .foregroundStyle(isDayClosed ? Theme.textQuaternary(colorScheme) : Theme.textSecondary(colorScheme))
                         .frame(width: 36, height: 36)
                         .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                .disabled(isDayClosed)
             }
 
             Spacer()

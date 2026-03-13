@@ -13,6 +13,7 @@ struct TaskRowView: View {
     @Bindable var timerManager: TimerManager
     var isActive: Bool
     var isSelected: Bool
+    var isDayClosed: Bool = false
     var onToggle: () -> Void
     var onDelete: () -> Void
     var onSelect: () -> Void
@@ -42,16 +43,17 @@ struct TaskRowView: View {
             Button(action: onToggle) {
                 ZStack {
                     Circle()
-                        .fill(isActive ? Theme.accent : Theme.accent.opacity(0.15))
+                        .fill(isDayClosed ? Theme.textQuaternary(colorScheme) : (isActive ? Theme.accent : Theme.accent.opacity(0.15)))
                         .frame(width: 30, height: 30)
 
-                    Image(systemName: isActive ? "pause.fill" : "play.fill")
+                    Image(systemName: isDayClosed ? "lock.fill" : (isActive ? "pause.fill" : "play.fill"))
                         .font(.system(size: 10, weight: .bold))
-                        .foregroundStyle(isActive ? .white : Theme.accent)
+                        .foregroundStyle(isDayClosed ? Theme.textTertiary(colorScheme) : (isActive ? .white : Theme.accent))
                         .contentTransition(.symbolEffect(.replace))
                 }
             }
             .buttonStyle(.plain)
+            .disabled(isDayClosed)
             .padding(.trailing, 8)
 
             // Task name
@@ -75,12 +77,12 @@ struct TaskRowView: View {
                     .contentShape(Rectangle())
                     .onTapGesture {
                         onSelect()
-                        startNameEditing()
+                        if !isDayClosed { startNameEditing() }
                     }
             }
 
             // Project code — tap to edit via banner
-            Button(action: onEditCode) {
+            Button(action: { if !isDayClosed { onEditCode() } }) {
                 if let code = task.projectCode {
                     Text(code)
                         .font(.system(size: 10, weight: .semibold))
@@ -118,7 +120,7 @@ struct TaskRowView: View {
                     .frame(width: 68, alignment: .trailing)
                     .contentShape(Rectangle())
                     .onTapGesture {
-                        startTimeEditing()
+                        if !isDayClosed { startTimeEditing() }
                     }
             }
 
@@ -131,6 +133,7 @@ struct TaskRowView: View {
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(rowBackground)
+        .opacity(isDayClosed ? 0.5 : 1.0)
         .animation(.easeInOut(duration: 0.2), value: isActive)
         .onHover { hovering in
             withAnimation(.easeInOut(duration: 0.12)) {
@@ -144,28 +147,30 @@ struct TaskRowView: View {
                 .padding(.leading, 50)
         }
         .contextMenu {
-            Button(isActive ? String(localized: "Stop") : String(localized: "Start")) {
-                onToggle()
-            }
+            if !isDayClosed {
+                Button(isActive ? String(localized: "Stop") : String(localized: "Start")) {
+                    onToggle()
+                }
 
-            Divider()
+                Divider()
 
-            Button(String(localized: "Rediger navn")) {
-                startNameEditing()
-            }
+                Button(String(localized: "Rediger navn")) {
+                    startNameEditing()
+                }
 
-            Button(String(localized: "Rediger projektkode")) {
-                onEditCode()
-            }
+                Button(String(localized: "Rediger projektkode")) {
+                    onEditCode()
+                }
 
-            Button(String(localized: "Rediger tid")) {
-                startTimeEditing()
-            }
+                Button(String(localized: "Rediger tid")) {
+                    startTimeEditing()
+                }
 
-            Divider()
+                Divider()
 
-            Button(String(localized: "Slet"), role: .destructive) {
-                onDelete()
+                Button(String(localized: "Slet"), role: .destructive) {
+                    onDelete()
+                }
             }
         }
     }

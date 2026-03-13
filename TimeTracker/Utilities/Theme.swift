@@ -72,6 +72,12 @@ enum Theme {
             : Color(red: 0.93, green: 0.95, blue: 0.99)
     }
 
+    static func closeDayBannerBackground(_ scheme: ColorScheme) -> Color {
+        scheme == .dark
+            ? Color(red: 0.12, green: 0.14, blue: 0.19)
+            : Color(red: 0.93, green: 0.95, blue: 0.99)
+    }
+
     static func todayBannerBackground(_ scheme: ColorScheme) -> Color {
         scheme == .dark
             ? Color(red: 0.16, green: 0.12, blue: 0.13)

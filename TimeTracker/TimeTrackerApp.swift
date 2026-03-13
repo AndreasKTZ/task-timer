@@ -17,6 +17,7 @@ struct TimeTrackerApp: App {
             Task.self,
             TaskTemplate.self,
             ProjectCode.self,
+            ClosedDay.self,
         ])
         let modelConfiguration = ModelConfiguration(schema: schema, isStoredInMemoryOnly: false)
 
