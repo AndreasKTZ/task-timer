@@ -7,6 +7,7 @@
 
 import SwiftUI
 import SwiftData
+import Combine
 
 struct MenuBarContentView: View {
     @Environment(\.modelContext) private var modelContext
@@ -17,7 +18,7 @@ struct MenuBarContentView: View {
     @Query private var closedDays: [ClosedDay]
     @Bindable var timerManager: TimerManager
     @State private var taskToDelete: Task?
-    @State private var selectedTaskID: UUID?
+    @AppStorage("selectedTaskID") private var selectedTaskIDString = ""
     @State private var showAddBanner = false
     @State private var newTaskName = ""
     @FocusState private var isAddFieldFocused: Bool
@@ -27,6 +28,12 @@ struct MenuBarContentView: View {
     @State private var showSettings = false
     @State private var showTemplateBanner = false
     @State private var showCloseDayConfirm = false
+    @AppStorage("workbookAPIKey") private var workbookAPIKey = ""
+
+    private var selectedTaskID: UUID? {
+        get { UUID(uuidString: selectedTaskIDString) }
+        set { selectedTaskIDString = newValue?.uuidString ?? "" }
+    }
 
     private var tasksForSelectedDate: [Task] {
         allTasks.filter { task in
@@ -100,6 +107,11 @@ struct MenuBarContentView: View {
             NSApp.keyWindow?.makeFirstResponder(nil)
         }
         .onAppear {
+            timerManager.syncActiveTask(with: allTasks)
+        }
+        .onReceive(NotificationCenter.default.publisher(for: NSWindow.didBecomeKeyNotification)) { _ in
+            // Force UI refresh so isToday re-evaluates against the current date
+            timerManager.tick += 1
             timerManager.syncActiveTask(with: allTasks)
         }
     }
@@ -317,6 +329,9 @@ struct MenuBarContentView: View {
         ScrollView {
             LazyVStack(spacing: 0) {
                 ForEach(tasksForSelectedDate) { task in
+                    let moveUp: (() -> Void)? = canMoveUp(task) ? { moveTask(task, direction: -1) } : nil
+                    let moveDown: (() -> Void)? = canMoveDown(task) ? { moveTask(task, direction: 1) } : nil
+
                     TaskRowView(
                         task: task,
                         timerManager: timerManager,
@@ -325,7 +340,7 @@ struct MenuBarContentView: View {
                         isDayClosed: isSelectedDayClosed,
                         onToggle: {
                             if !task.isRunning {
-                                selectedTaskID = task.id
+                                selectedTaskIDString = task.id.uuidString
                             }
                             timerManager.toggleTask(task, allTasks: allTasks, modelContext: modelContext)
                         },
@@ -333,11 +348,13 @@ struct MenuBarContentView: View {
                             confirmDelete(task)
                         },
                         onSelect: {
-                            selectedTaskID = task.id
+                            selectedTaskIDString = task.id.uuidString
                         },
                         onEditCode: {
                             showCodeBanner(for: task)
-                        }
+                        },
+                        onMoveUp: moveUp,
+                        onMoveDown: moveDown
                     )
                     .transition(.asymmetric(
                         insertion: .move(edge: .top).combined(with: .opacity),
@@ -345,6 +362,30 @@ struct MenuBarContentView: View {
                     ))
                 }
             }
+        }
+    }
+
+    private func canMoveUp(_ task: Task) -> Bool {
+        guard let index = tasksForSelectedDate.firstIndex(where: { $0.id == task.id }) else { return false }
+        return index > 0
+    }
+
+    private func canMoveDown(_ task: Task) -> Bool {
+        guard let index = tasksForSelectedDate.firstIndex(where: { $0.id == task.id }) else { return false }
+        return index < tasksForSelectedDate.count - 1
+    }
+
+    private func moveTask(_ task: Task, direction: Int) {
+        let tasks = tasksForSelectedDate
+        guard let fromIndex = tasks.firstIndex(where: { $0.id == task.id }) else { return }
+        let toIndex = fromIndex + direction
+        guard toIndex >= 0, toIndex < tasks.count else { return }
+
+        withAnimation(.easeInOut(duration: 0.2)) {
+            let other = tasks[toIndex]
+            let tempOrder = task.sortOrder
+            task.sortOrder = other.sortOrder
+            other.sortOrder = tempOrder
         }
     }
 
@@ -372,7 +413,9 @@ struct MenuBarContentView: View {
 
                 Spacer()
 
-                Text(String(localized: "\(String(format: "%.2f", closed.billableHours)) timer sendt til Workbook"))
+                Text(workbookAPIKey.isEmpty
+                     ? String(localized: "\(String(format: "%.2f", closed.billableHours)) timer registreret")
+                     : String(localized: "\(String(format: "%.2f", closed.billableHours)) timer sendt til Workbook"))
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(Theme.textTertiary(colorScheme))
             } else {
@@ -541,7 +584,7 @@ struct MenuBarContentView: View {
                 timerManager.stopTask(task, modelContext: modelContext)
             }
             if selectedTaskID == task.id {
-                selectedTaskID = nil
+                selectedTaskIDString = ""
             }
             modelContext.delete(task)
             taskToDelete = nil
@@ -929,7 +972,9 @@ struct MenuBarContentView: View {
                     .foregroundStyle(Theme.textPrimary(colorScheme))
                     .lineLimit(1)
 
-                Text(String(localized: "\(taskCount) opgaver \u{2022} \(hours) timer sendes til Workbook"))
+                Text(workbookAPIKey.isEmpty
+                     ? String(localized: "\(taskCount) opgaver \u{2022} \(hours) timer registreres")
+                     : String(localized: "\(taskCount) opgaver \u{2022} \(hours) timer sendes til Workbook"))
                     .font(.system(size: 11))
                     .foregroundStyle(Theme.textSecondary(colorScheme))
                     .lineLimit(1)
@@ -1061,6 +1106,7 @@ private struct DayStripView: View {
 
             // Banner area — clipped so it slides out from under the week strip
             VStack(spacing: 0) {
+                let _ = timerManager.tick // force refresh so isToday re-evaluates on panel open
                 if !timerManager.isToday {
                     todayBanner
                         .transition(.move(edge: .top))
@@ -1197,3 +1243,4 @@ private struct BottomBar: View {
         }
     }
 }
+

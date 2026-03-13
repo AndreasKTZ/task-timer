@@ -18,6 +18,8 @@ struct TaskRowView: View {
     var onDelete: () -> Void
     var onSelect: () -> Void
     var onEditCode: () -> Void
+    var onMoveUp: (() -> Void)?
+    var onMoveDown: (() -> Void)?
 
     @State private var isEditingName = false
     @State private var editedName: String = ""
@@ -167,6 +169,22 @@ struct TaskRowView: View {
                 }
 
                 Divider()
+
+                if let onMoveUp {
+                    Button(String(localized: "Flyt op")) {
+                        onMoveUp()
+                    }
+                }
+
+                if let onMoveDown {
+                    Button(String(localized: "Flyt ned")) {
+                        onMoveDown()
+                    }
+                }
+
+                if onMoveUp != nil || onMoveDown != nil {
+                    Divider()
+                }
 
                 Button(String(localized: "Slet"), role: .destructive) {
                     onDelete()
